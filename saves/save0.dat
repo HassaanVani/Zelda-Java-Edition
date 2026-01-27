@@ -1,0 +1,14 @@
+#Zelda Save File
+#Mon Jan 19 18:25:25 EST 2026
+bombs=0
+hasSword=false
+health=6
+keys=0
+maxHealth=6
+playTime=0
+playerName=A
+playerX=128
+playerY=88
+roomX=7
+roomY=7
+rupees=0
