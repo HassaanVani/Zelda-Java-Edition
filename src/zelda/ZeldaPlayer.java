@@ -32,10 +32,6 @@ public class ZeldaPlayer {
     private int invulnerableFrames = 0;
     private static final int INVULNERABLE_TIME = 60;
     
-    private int animFrame = 0;
-    private long lastFrameTime = 0;
-    private static final long FRAME_DURATION = 150;
-    
     private KeyHandler keyHandler;
     
     private Image[][] walkImages = new Image[4][2];
@@ -102,16 +98,6 @@ public class ZeldaPlayer {
             else if (keyHandler.rightPressed) { worldX += speed; direction = 1; moving = true; }
         }
         
-        if (moving) {
-            long now = System.currentTimeMillis();
-            if (now - lastFrameTime > FRAME_DURATION) {
-                animFrame = (animFrame + 1) % 2;
-                lastFrameTime = now;
-            }
-        } else {
-            animFrame = 0;
-        }
-        
         updateSwordHitbox();
     }
     
@@ -135,7 +121,7 @@ public class ZeldaPlayer {
         if (invulnerableFrames > 0 && (invulnerableFrames / 4) % 2 == 0) return;
         
         Image[][] sprites = attacking ? attackImages : walkImages;
-        Image img = sprites[direction][animFrame];
+        Image img = sprites[direction][0];
         
         int x = worldX;
         int y = worldY;

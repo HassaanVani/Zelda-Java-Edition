@@ -177,7 +177,7 @@ public class ZeldaGame {
         if (cr != null && cr.getRoomX() == 7 && cr.getRoomY() == 7 && !player.hasSword()) {
             int px = player.getWorldX();
             int py = player.getWorldY();
-            if (px >= 112 && px <= 136 && py >= 32 && py <= 48) {
+            if (px >= 104 && px <= 144 && py <= 56) {
                 enterCave();
             }
         }
@@ -230,10 +230,10 @@ public class ZeldaGame {
             overworld.setCurrentRoom(newRoomX, newRoomY);
             
             switch (direction) {
-                case 0: player.setPosition(player.getWorldX(), 176 - 32); break;
-                case 1: player.setPosition(16, player.getWorldY()); break;
-                case 2: player.setPosition(player.getWorldX(), 16); break;
-                case 3: player.setPosition(256 - 32, player.getWorldY()); break;
+                case 0: player.setPosition(player.getWorldX(), 140); break;
+                case 1: player.setPosition(24, player.getWorldY()); break;
+                case 2: player.setPosition(player.getWorldX(), 24); break;
+                case 3: player.setPosition(224, player.getWorldY()); break;
             }
             
             transitionTimer = TRANSITION_DURATION;
