@@ -5,72 +5,89 @@ import javax.swing.ImageIcon;
 import java.io.File;
 
 public class Cave {
-    private int x, y;
-    private int width = 48;
-    private int height = 40;
-    
+    private boolean active = false;
     private boolean swordTaken = false;
     
     private Image oldManSprite;
     private Image swordSprite;
+    private Image flameSprite;
     
-    public Cave(int x, int y) {
-        this.x = x;
-        this.y = y;
+    public Cave() {
         loadSprites();
     }
     
     private void loadSprites() {
-        File oldManFile = new File("sprites/NPCs/Old Man.gif");
-        if (oldManFile.exists()) {
-            oldManSprite = new ImageIcon(oldManFile.getPath()).getImage();
-        }
-        
-        File swordFile = new File("sprites/Objects/Wooden Sword (Up).gif");
-        if (swordFile.exists()) {
-            swordSprite = new ImageIcon(swordFile.getPath()).getImage();
-        }
+        oldManSprite = loadGif("sprites/NPCs/Old Man.gif");
+        swordSprite = loadGif("sprites/Objects/Wooden Sword (Up).gif");
+        flameSprite = loadGif("sprites/Objects/Fire1.gif");
     }
     
+    private Image loadGif(String path) {
+        File f = new File(path);
+        if (f.exists()) return new ImageIcon(path).getImage();
+        return null;
+    }
+    
+    public void enter() {
+        active = true;
+    }
+    
+    public void exit() {
+        active = false;
+    }
+    
+    public boolean isActive() { return active; }
+    public boolean isSwordTaken() { return swordTaken; }
+    
     public void update(ZeldaPlayer player) {
-        if (swordTaken) return;
+        if (!active || swordTaken) return;
         
-        Rectangle swordBox = new Rectangle(x + 18, y + 24, 12, 16);
+        Rectangle swordBox = new Rectangle(120, 100, 16, 16);
         if (player.getHitbox().intersects(swordBox)) {
             swordTaken = true;
             player.setSword(true);
         }
     }
     
+    public boolean checkExit(ZeldaPlayer player) {
+        return player.getWorldY() > 160;
+    }
+    
     public void render(Graphics2D g2) {
         g2.setColor(Color.BLACK);
-        g2.fillRect(x, y, width, height);
+        g2.fillRect(0, 0, 256, 176);
+        
+        if (flameSprite != null) {
+            g2.drawImage(flameSprite, 72, 48, 16, 16, null);
+            g2.drawImage(flameSprite, 168, 48, 16, 16, null);
+        } else {
+            g2.setColor(new Color(255, 100, 0));
+            g2.fillOval(74, 50, 12, 12);
+            g2.fillOval(170, 50, 12, 12);
+        }
         
         if (oldManSprite != null) {
-            g2.drawImage(oldManSprite, x + 16, y + 4, 16, 16, null);
+            g2.drawImage(oldManSprite, 120, 48, 16, 16, null);
         } else {
-            g2.setColor(new Color(180, 140, 100));
-            g2.fillRect(x + 18, y + 4, 12, 14);
+            g2.setColor(new Color(180, 100, 60));
+            g2.fillRect(120, 48, 16, 16);
         }
         
         if (!swordTaken) {
             if (swordSprite != null) {
-                g2.drawImage(swordSprite, x + 19, y + 22, 10, 14, null);
+                g2.drawImage(swordSprite, 122, 100, 12, 16, null);
             } else {
                 g2.setColor(new Color(160, 160, 160));
-                g2.fillRect(x + 20, y + 22, 8, 12);
+                g2.fillRect(124, 100, 8, 14);
             }
         }
         
-        g2.setColor(new Color(180, 100, 40));
-        g2.fillRect(x + 2, y + 4, 10, 16);
-        g2.fillRect(x + width - 12, y + 4, 10, 16);
-        
-        g2.setFont(new Font("Monospaced", Font.PLAIN, 6));
+        g2.setFont(new Font("Monospaced", Font.PLAIN, 8));
         g2.setColor(Color.WHITE);
-        g2.drawString("IT'S DANGEROUS", x - 12, y - 10);
-        g2.drawString("TO GO ALONE!", x - 8, y - 3);
+        g2.drawString("IT'S DANGEROUS TO GO", 64, 72);
+        g2.drawString("ALONE! TAKE THIS.", 72, 84);
+        
+        g2.setColor(Color.WHITE);
+        g2.fillRect(112, 168, 32, 8);
     }
-    
-    public boolean isSwordTaken() { return swordTaken; }
 }

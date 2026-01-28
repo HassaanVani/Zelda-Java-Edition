@@ -10,7 +10,8 @@ public class ZeldaGame {
         PLAYING,
         PAUSED,
         GAME_OVER,
-        ROOM_TRANSITION
+        ROOM_TRANSITION,
+        CAVE
     }
     
     private GameState state = GameState.TITLE_SCREEN;
@@ -24,6 +25,7 @@ public class ZeldaGame {
     private AudioManager audioManager;
     private SaveManager saveManager;
     private CombatManager combatManager;
+    private Cave cave;
     
     private int currentSaveSlot = -1;
     private String playerName = "LINK";
@@ -132,6 +134,10 @@ public class ZeldaGame {
                     keyHandler.startPressed = false;
                 }
                 break;
+                
+            case CAVE:
+                updateCave();
+                break;
         }
     }
     
@@ -165,6 +171,32 @@ public class ZeldaGame {
             state = GameState.GAME_OVER;
             audioManager.stopMusic();
             audioManager.playMusic("11 Game Over.wav");
+        }
+        
+        ZeldaRoom cr = getCurrentRoom();
+        if (cr != null && cr.getRoomX() == 7 && cr.getRoomY() == 7 && !player.hasSword()) {
+            int px = player.getWorldX();
+            int py = player.getWorldY();
+            if (px >= 112 && px <= 136 && py >= 32 && py <= 48) {
+                enterCave();
+            }
+        }
+    }
+    
+    private void enterCave() {
+        if (cave == null) cave = new Cave();
+        cave.enter();
+        player.setPosition(120, 140);
+        state = GameState.CAVE;
+    }
+    
+    private void updateCave() {
+        player.update();
+        cave.update(player);
+        
+        if (cave.checkExit(player)) {
+            state = GameState.PLAYING;
+            player.setPosition(120, 64);
         }
     }
     
@@ -235,6 +267,10 @@ public class ZeldaGame {
             case GAME_OVER:
                 renderGameOver(g2);
                 break;
+                
+            case CAVE:
+                renderCave(g2);
+                break;
         }
     }
     
@@ -258,6 +294,14 @@ public class ZeldaGame {
             g2.setColor(new Color(0, 0, 0, (int)(200 * (transitionTimer / (float)TRANSITION_DURATION))));
             g2.fillRect(0, 56, 256, 176);
         }
+    }
+    
+    private void renderCave(Graphics2D g2) {
+        g2.translate(0, 56);
+        cave.render(g2);
+        player.render(g2);
+        g2.translate(0, -56);
+        hud.render(g2, null);
     }
     
     private void renderPauseOverlay(Graphics2D g2) {

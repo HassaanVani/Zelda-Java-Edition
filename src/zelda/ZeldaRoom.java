@@ -10,7 +10,6 @@ public class ZeldaRoom {
     private List<ZeldaEnemy> enemies = new ArrayList<>();
     private List<Item> items = new ArrayList<>();
     private List<Projectile> projectiles = new ArrayList<>();
-    private Cave cave;
     
     private boolean cleared = false;
     private boolean visited = false;
@@ -32,10 +31,6 @@ public class ZeldaRoom {
         if (collisionMap == null) {
             collisionMap = new CollisionMap();
             collisionMap.setRenderer(overworldRenderer);
-        }
-        
-        if (roomX == 7 && roomY == 7) {
-            cave = new Cave(104, 32);
         }
     }
     
@@ -144,10 +139,6 @@ public class ZeldaRoom {
         }
         
         checkPlayerCollision(player);
-        
-        if (cave != null) {
-            cave.update(player);
-        }
     }
     
     private void spawnDrop(double x, double y) {
@@ -183,10 +174,6 @@ public class ZeldaRoom {
     
     public void render(Graphics2D g2) {
         overworldRenderer.renderRoom(g2, roomX, roomY);
-        
-        if (cave != null) {
-            cave.render(g2);
-        }
         
         for (Item item : items) item.render(g2);
         for (ZeldaEnemy enemy : enemies) enemy.render(g2);

@@ -16,34 +16,25 @@ public class Octorok extends ZeldaEnemy {
     private static final int SHOOT_RANGE = 100;
     
     private boolean isBlue;
-    private Image[] directionSprites = new Image[4];
+    private Image frontSprite;
+    private Image leftSprite;
     
     public Octorok(double x, double y, boolean blue) {
         super(x, y, blue ? 2 : 1, AIType.SHOOTER);
         this.isBlue = blue;
-        this.speed = blue ? 0.6 : 0.4;
+        this.speed = blue ? 0.5 : 0.4;
         loadSprites();
     }
     
     private void loadSprites() {
         String color = isBlue ? "Blue" : "Red";
-        String base = "sprites/Enemies/Octorok - " + color;
-        
-        directionSprites[0] = loadGif(base + " (Back).gif");
-        directionSprites[1] = loadGif(base + " (Left).gif");
-        directionSprites[2] = loadGif(base + " (Front).gif");
-        directionSprites[3] = directionSprites[1];
-        
-        if (directionSprites[2] == null) {
-            directionSprites[2] = loadGif(base + ".gif");
-        }
+        frontSprite = loadGif("sprites/Enemies/Octorok - " + color + " (Front).gif");
+        leftSprite = loadGif("sprites/Enemies/Octorok - " + color + " (Left).gif");
     }
     
     private Image loadGif(String path) {
         File f = new File(path);
-        if (f.exists()) {
-            return new ImageIcon(path).getImage();
-        }
+        if (f.exists()) return new ImageIcon(path).getImage();
         return null;
     }
     
@@ -134,9 +125,24 @@ public class Octorok extends ZeldaEnemy {
             return;
         }
         
-        Image img = directionSprites[direction];
+        Image img = null;
+        boolean flipH = false;
+        
+        switch (direction) {
+            case 0:
+            case 2:
+                img = frontSprite;
+                flipH = (direction == 0);
+                break;
+            case 1:
+            case 3:
+                img = leftSprite;
+                flipH = (direction == 1);
+                break;
+        }
+        
         if (img != null) {
-            if (direction == 1) {
+            if (flipH) {
                 g2.drawImage(img, drawX + 16, drawY, -16, 16, null);
             } else {
                 g2.drawImage(img, drawX, drawY, 16, 16, null);

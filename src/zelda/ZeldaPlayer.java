@@ -17,7 +17,7 @@ public class ZeldaPlayer {
     private int bombs = 0;
     
     private String name = "LINK";
-    private boolean hasSword = true;
+    private boolean hasSword = false;
     private boolean hasBoomerang = false;
     
     private int direction = 2;
@@ -28,10 +28,13 @@ public class ZeldaPlayer {
     private static final int ATTACK_DURATION = 15;
     private Rectangle swordHitbox = new Rectangle(0, 0, 14, 14);
     private boolean attackKeyReleased = true;
-    private boolean swordHit = false;
     
     private int invulnerableFrames = 0;
     private static final int INVULNERABLE_TIME = 60;
+    
+    private int animFrame = 0;
+    private long lastFrameTime = 0;
+    private static final long FRAME_DURATION = 150;
     
     private KeyHandler keyHandler;
     
@@ -65,17 +68,11 @@ public class ZeldaPlayer {
         attackImages[2][1] = loadGif(base + "(Front) - Wooden Sword2.gif");
         attackImages[3][0] = attackImages[1][0];
         attackImages[3][1] = attackImages[1][1];
-        
-        System.out.println("[Link] Walk=" + (walkImages[2][0] != null) + " Attack=" + (attackImages[2][0] != null));
     }
     
     private Image loadGif(String path) {
         File f = new File(path);
-        if (f.exists()) {
-            ImageIcon icon = new ImageIcon(path);
-            return icon.getImage();
-        }
-        System.err.println("[Link] Missing: " + path);
+        if (f.exists()) return new ImageIcon(path).getImage();
         return null;
     }
     
@@ -87,17 +84,13 @@ public class ZeldaPlayer {
         
         if (attackTimer > 0) {
             attackTimer--;
-            if (attackTimer == 0) {
-                attacking = false;
-                swordHit = false;
-            }
+            if (attackTimer == 0) attacking = false;
         }
         
         if (keyHandler.zPressed && attackKeyReleased && !attacking && hasSword) {
             attacking = true;
             attackTimer = ATTACK_DURATION;
             attackKeyReleased = false;
-            swordHit = false;
         }
         if (!keyHandler.zPressed) attackKeyReleased = true;
         
@@ -107,6 +100,16 @@ public class ZeldaPlayer {
             else if (keyHandler.downPressed) { worldY += speed; direction = 2; moving = true; }
             else if (keyHandler.leftPressed) { worldX -= speed; direction = 3; moving = true; }
             else if (keyHandler.rightPressed) { worldX += speed; direction = 1; moving = true; }
+        }
+        
+        if (moving) {
+            long now = System.currentTimeMillis();
+            if (now - lastFrameTime > FRAME_DURATION) {
+                animFrame = (animFrame + 1) % 2;
+                lastFrameTime = now;
+            }
+        } else {
+            animFrame = 0;
         }
         
         updateSwordHitbox();
@@ -119,12 +122,12 @@ public class ZeldaPlayer {
         }
         
         int len = 16;
-        int w = 8;
+        int w = 10;
         switch (direction) {
-            case 0: swordHitbox.setBounds(worldX + 4, worldY - len, w, len); break;
-            case 1: swordHitbox.setBounds(worldX + 16, worldY + 4, len, w); break;
-            case 2: swordHitbox.setBounds(worldX + 4, worldY + 16, w, len); break;
-            case 3: swordHitbox.setBounds(worldX - len, worldY + 4, len, w); break;
+            case 0: swordHitbox.setBounds(worldX + 3, worldY - len, w, len); break;
+            case 1: swordHitbox.setBounds(worldX + 16, worldY + 3, len, w); break;
+            case 2: swordHitbox.setBounds(worldX + 3, worldY + 16, w, len); break;
+            case 3: swordHitbox.setBounds(worldX - len, worldY + 3, len, w); break;
         }
     }
     
@@ -132,13 +135,21 @@ public class ZeldaPlayer {
         if (invulnerableFrames > 0 && (invulnerableFrames / 4) % 2 == 0) return;
         
         Image[][] sprites = attacking ? attackImages : walkImages;
-        int frame = moving ? ((System.currentTimeMillis() / 150) % 2 == 0 ? 0 : 1) : 0;
-        Image img = sprites[direction][frame];
+        Image img = sprites[direction][animFrame];
         
         int x = worldX;
         int y = worldY;
         int w = 16;
         int h = 16;
+        
+        if (attacking) {
+            switch (direction) {
+                case 0: y -= 12; h = 28; break;
+                case 1: w = 28; break;
+                case 2: h = 28; break;
+                case 3: x -= 12; w = 28; break;
+            }
+        }
         
         if (img != null) {
             if (direction == 1) {
@@ -148,7 +159,7 @@ public class ZeldaPlayer {
             }
         } else {
             g2.setColor(new Color(0, 168, 0));
-            g2.fillRect(x, y, w, h);
+            g2.fillRect(worldX, worldY, 16, 16);
         }
     }
     
@@ -173,8 +184,6 @@ public class ZeldaPlayer {
     public void setSword(boolean v) { hasSword = v; }
     public boolean hasBoomerang() { return hasBoomerang; }
     public void setBoomerang(boolean v) { hasBoomerang = v; }
-    public boolean hasSwordHit() { return swordHit; }
-    public void setSwordHit(boolean v) { swordHit = v; }
     
     public int getWorldX() { return worldX; }
     public int getWorldY() { return worldY; }
