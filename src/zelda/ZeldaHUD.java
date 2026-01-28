@@ -1,47 +1,44 @@
 package zelda;
 
 import java.awt.*;
-import java.awt.image.BufferedImage;
-import javax.imageio.ImageIO;
+import javax.swing.ImageIcon;
 import java.io.File;
 
 public class ZeldaHUD {
     private ZeldaPlayer player;
     
-    private BufferedImage heartFull, heartHalf, heartEmpty;
-    private BufferedImage rupeeIcon, keyIcon, bombIcon, swordIcon;
+    private Image heartFull, heartHalf, heartEmpty;
+    private Image rupeeIcon, keyIcon, bombIcon, swordIcon;
     
-    private static final Color BG_COLOR = new Color(0, 0, 0);
-    private static final Color TEXT_COLOR = Color.WHITE;
-    private static final Color LIFE_COLOR = new Color(180, 56, 0);
+    private static final Color BG = new Color(0, 0, 0);
+    private static final Color TEXT = Color.WHITE;
+    private static final Color LIFE = new Color(200, 72, 72);
     
     public ZeldaHUD() {
         loadSprites();
     }
     
     private void loadSprites() {
-        String path = "sprites/Objects/";
-        heartFull = loadImg(path + "Life1.gif");
-        heartHalf = loadImg(path + "Life2.gif");
-        heartEmpty = loadImg(path + "Life3.gif");
-        rupeeIcon = loadImg(path + "Rupy.gif");
-        keyIcon = loadImg(path + "Key.gif");
-        bombIcon = loadImg(path + "Bomb.gif");
-        swordIcon = loadImg(path + "Wooden Sword (Up).gif");
+        String p = "sprites/Objects/";
+        heartFull = loadGif(p + "Life1.gif");
+        heartHalf = loadGif(p + "Life2.gif");
+        heartEmpty = loadGif(p + "Life3.gif");
+        rupeeIcon = loadGif(p + "Rupy.gif");
+        keyIcon = loadGif(p + "Key.gif");
+        bombIcon = loadGif(p + "Bomb.gif");
+        swordIcon = loadGif(p + "Wooden Sword (Up).gif");
     }
     
-    private BufferedImage loadImg(String path) {
-        try {
-            File f = new File(path);
-            if (f.exists()) return ImageIO.read(f);
-        } catch (Exception e) {}
+    private Image loadGif(String path) {
+        File f = new File(path);
+        if (f.exists()) return new ImageIcon(path).getImage();
         return null;
     }
     
     public void setPlayer(ZeldaPlayer p) { this.player = p; }
     
     public void render(Graphics2D g2, ZeldaRoom room) {
-        g2.setColor(BG_COLOR);
+        g2.setColor(BG);
         g2.fillRect(0, 0, 256, 56);
         
         renderMinimap(g2, room);
@@ -52,92 +49,90 @@ public class ZeldaHUD {
     private void renderMinimap(Graphics2D g2, ZeldaRoom room) {
         int x = 16, y = 18, w = 64, h = 32;
         
-        g2.setColor(new Color(60, 60, 60));
+        g2.setColor(new Color(80, 80, 80));
         g2.fillRect(x, y, w, h);
-        g2.setColor(new Color(116, 116, 116));
+        g2.setColor(new Color(120, 120, 120));
         g2.drawRect(x-1, y-1, w+1, h+1);
         
         if (room != null) {
-            int dotX = x + (room.getRoomX() * w / 16);
-            int dotY = y + (room.getRoomY() * h / 8);
-            g2.setColor(Color.GREEN);
-            g2.fillRect(dotX, dotY, 4, 4);
+            int dx = x + (room.getRoomX() * w / 16);
+            int dy = y + (room.getRoomY() * h / 8);
+            g2.setColor(new Color(0, 200, 0));
+            g2.fillRect(dx, dy, 4, 4);
         }
     }
     
     private void renderInventory(Graphics2D g2) {
         if (player == null) return;
         
-        int x = 96;
+        int x = 92;
+        int y = 8;
         
-        g2.setColor(new Color(116, 116, 116));
-        g2.drawRect(x, 24, 24, 16);
-        g2.drawRect(x + 28, 24, 24, 16);
+        g2.setColor(new Color(120, 120, 120));
+        g2.drawRect(x, y + 12, 20, 16);
+        g2.drawRect(x + 24, y + 12, 20, 16);
         
-        g2.setColor(TEXT_COLOR);
-        g2.setFont(new Font("Monospaced", Font.PLAIN, 10));
-        g2.drawString("B", x + 8, 20);
-        g2.drawString("A", x + 36, 20);
+        g2.setColor(TEXT);
+        g2.setFont(new Font("Monospaced", Font.PLAIN, 8));
+        g2.drawString("B", x + 6, y + 10);
+        g2.drawString("A", x + 30, y + 10);
         
         if (player.hasSword() && swordIcon != null) {
-            g2.drawImage(swordIcon, x + 32, 26, 16, 12, null);
+            g2.drawImage(swordIcon, x + 28, y + 14, 12, 12, null);
         }
         
-        int statX = x;
-        int statY = 48;
+        int iy = y + 34;
         
-        g2.setFont(new Font("Monospaced", Font.PLAIN, 10));
+        if (rupeeIcon != null) {
+            g2.drawImage(rupeeIcon, x, iy, 8, 8, null);
+        }
+        g2.setColor(TEXT);
+        g2.drawString(String.format("%03d", player.getRupees()), x + 10, iy + 8);
         
-        g2.setColor(new Color(0, 200, 0));
-        g2.drawString("$", statX, statY);
-        g2.setColor(TEXT_COLOR);
-        g2.drawString(String.format("%03d", player.getRupees()), statX + 10, statY);
+        if (keyIcon != null) {
+            g2.drawImage(keyIcon, x + 36, iy - 2, 6, 10, null);
+        }
+        g2.setColor(TEXT);
+        g2.drawString(String.format("%02d", player.getKeys()), x + 44, iy + 8);
         
-        g2.setColor(new Color(255, 180, 0));
-        g2.drawString("K", statX + 44, statY);
-        g2.setColor(TEXT_COLOR);
-        g2.drawString(String.format("%02d", player.getKeys()), statX + 54, statY);
-        
-        g2.setColor(new Color(100, 100, 255));
-        g2.drawString("B", statX + 78, statY);
-        g2.setColor(TEXT_COLOR);
-        g2.drawString(String.format("%02d", player.getBombs()), statX + 88, statY);
+        int by = iy + 10;
+        if (bombIcon != null) {
+            g2.drawImage(bombIcon, x, by, 8, 8, null);
+        }
+        g2.setColor(TEXT);
+        g2.drawString(String.format("%02d", player.getBombs()), x + 10, by + 8);
     }
     
     private void renderLife(Graphics2D g2) {
         if (player == null) return;
         
-        int x = 176, y = 16;
+        int x = 176, y = 8;
         
-        g2.setColor(LIFE_COLOR);
-        g2.setFont(new Font("Monospaced", Font.BOLD, 10));
-        g2.drawString("-LIFE-", x + 8, y);
+        g2.setColor(LIFE);
+        g2.setFont(new Font("Monospaced", Font.BOLD, 8));
+        g2.drawString("-LIFE-", x + 12, y + 6);
         
-        int heartX = x;
-        int heartY = y + 8;
+        int hx = x;
+        int hy = y + 12;
         int size = 8;
-        int maxHearts = player.getMaxHealth() / 2;
-        int fullHearts = player.getHealth() / 2;
-        boolean halfHeart = player.getHealth() % 2 == 1;
+        int maxH = player.getMaxHealth() / 2;
+        int fullH = player.getHealth() / 2;
+        boolean halfH = player.getHealth() % 2 == 1;
         
-        for (int i = 0; i < maxHearts; i++) {
-            int hx = heartX + (i % 8) * (size + 1);
-            int hy = heartY + (i / 8) * (size + 2);
+        for (int i = 0; i < maxH; i++) {
+            int px = hx + (i % 8) * (size + 1);
+            int py = hy + (i / 8) * (size + 2);
             
-            BufferedImage img;
-            if (i < fullHearts) {
-                img = heartFull;
-            } else if (i == fullHearts && halfHeart) {
-                img = heartHalf;
-            } else {
-                img = heartEmpty;
-            }
+            Image img;
+            if (i < fullH) img = heartFull;
+            else if (i == fullH && halfH) img = heartHalf;
+            else img = heartEmpty;
             
             if (img != null) {
-                g2.drawImage(img, hx, hy, size, size, null);
+                g2.drawImage(img, px, py, size, size, null);
             } else {
-                g2.setColor(i < fullHearts ? Color.RED : Color.DARK_GRAY);
-                g2.fillRect(hx, hy, size, size);
+                g2.setColor(i < fullH ? Color.RED : Color.DARK_GRAY);
+                g2.fillRect(px, py, size, size);
             }
         }
     }

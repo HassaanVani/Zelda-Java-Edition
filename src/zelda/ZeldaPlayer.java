@@ -2,8 +2,7 @@ package zelda;
 
 import engine.KeyHandler;
 import java.awt.*;
-import java.awt.image.BufferedImage;
-import javax.imageio.ImageIO;
+import javax.swing.ImageIcon;
 import java.io.File;
 
 public class ZeldaPlayer {
@@ -26,20 +25,18 @@ public class ZeldaPlayer {
     
     private boolean attacking = false;
     private int attackTimer = 0;
-    private static final int ATTACK_DURATION = 12;
-    private Rectangle swordHitbox = new Rectangle(0, 0, 12, 12);
+    private static final int ATTACK_DURATION = 15;
+    private Rectangle swordHitbox = new Rectangle(0, 0, 14, 14);
     private boolean attackKeyReleased = true;
+    private boolean swordHit = false;
     
     private int invulnerableFrames = 0;
     private static final int INVULNERABLE_TIME = 60;
     
-    private int frame = 0;
-    private int animCounter = 0;
-    
     private KeyHandler keyHandler;
     
-    private BufferedImage[][] walkFrames = new BufferedImage[4][2];
-    private BufferedImage[][] attackFrames = new BufferedImage[4][2];
+    private Image[][] walkImages = new Image[4][2];
+    private Image[][] attackImages = new Image[4][2];
     
     public ZeldaPlayer(int x, int y, KeyHandler keyHandler) {
         this.worldX = x;
@@ -51,35 +48,34 @@ public class ZeldaPlayer {
     private void loadSprites() {
         String base = "sprites/Link/Link (Normal) ";
         
-        walkFrames[0][0] = loadImg(base + "(Back).gif");
-        walkFrames[0][1] = walkFrames[0][0];
-        walkFrames[1][0] = loadImg(base + "(Left)1.gif");
-        walkFrames[1][1] = loadImg(base + "(Left)2.gif");
-        walkFrames[2][0] = loadImg(base + "(Front)1.gif");
-        walkFrames[2][1] = loadImg(base + "(Front)2.gif");
-        walkFrames[3][0] = walkFrames[1][0];
-        walkFrames[3][1] = walkFrames[1][1];
+        walkImages[0][0] = loadGif(base + "(Back).gif");
+        walkImages[0][1] = walkImages[0][0];
+        walkImages[1][0] = loadGif(base + "(Left)1.gif");
+        walkImages[1][1] = loadGif(base + "(Left)2.gif");
+        walkImages[2][0] = loadGif(base + "(Front)1.gif");
+        walkImages[2][1] = loadGif(base + "(Front)2.gif");
+        walkImages[3][0] = walkImages[1][0];
+        walkImages[3][1] = walkImages[1][1];
         
-        attackFrames[0][0] = loadImg(base + "(Back) - Wooden Sword.gif");
-        attackFrames[0][1] = attackFrames[0][0];
-        attackFrames[1][0] = loadImg(base + "(Left) - Wooden Sword1.gif");
-        attackFrames[1][1] = loadImg(base + "(Left) - Wooden Sword2.gif");
-        attackFrames[2][0] = loadImg(base + "(Front) - Wooden Sword1.gif");
-        attackFrames[2][1] = loadImg(base + "(Front) - Wooden Sword2.gif");
-        attackFrames[3][0] = attackFrames[1][0];
-        attackFrames[3][1] = attackFrames[1][1];
+        attackImages[0][0] = loadGif(base + "(Back) - Wooden Sword.gif");
+        attackImages[0][1] = attackImages[0][0];
+        attackImages[1][0] = loadGif(base + "(Left) - Wooden Sword1.gif");
+        attackImages[1][1] = loadGif(base + "(Left) - Wooden Sword2.gif");
+        attackImages[2][0] = loadGif(base + "(Front) - Wooden Sword1.gif");
+        attackImages[2][1] = loadGif(base + "(Front) - Wooden Sword2.gif");
+        attackImages[3][0] = attackImages[1][0];
+        attackImages[3][1] = attackImages[1][1];
         
-        System.out.println("[Link] Sprites: Walk=" + 
-            (walkFrames[2][0] != null ? "OK" : "FAIL") + 
-            " Attack=" + (attackFrames[2][0] != null ? "OK" : "FAIL"));
+        System.out.println("[Link] Walk=" + (walkImages[2][0] != null) + " Attack=" + (attackImages[2][0] != null));
     }
     
-    private BufferedImage loadImg(String path) {
-        try {
-            File f = new File(path);
-            if (f.exists()) return ImageIO.read(f);
-            System.err.println("[Link] Missing: " + path);
-        } catch (Exception e) {}
+    private Image loadGif(String path) {
+        File f = new File(path);
+        if (f.exists()) {
+            ImageIcon icon = new ImageIcon(path);
+            return icon.getImage();
+        }
+        System.err.println("[Link] Missing: " + path);
         return null;
     }
     
@@ -91,13 +87,17 @@ public class ZeldaPlayer {
         
         if (attackTimer > 0) {
             attackTimer--;
-            if (attackTimer == 0) attacking = false;
+            if (attackTimer == 0) {
+                attacking = false;
+                swordHit = false;
+            }
         }
         
         if (keyHandler.zPressed && attackKeyReleased && !attacking && hasSword) {
             attacking = true;
             attackTimer = ATTACK_DURATION;
             attackKeyReleased = false;
+            swordHit = false;
         }
         if (!keyHandler.zPressed) attackKeyReleased = true;
         
@@ -109,31 +109,31 @@ public class ZeldaPlayer {
             else if (keyHandler.rightPressed) { worldX += speed; direction = 1; moving = true; }
         }
         
-        if (moving) {
-            animCounter++;
-            if (animCounter >= 8) { animCounter = 0; frame = (frame + 1) % 2; }
-        } else {
-            frame = 0;
-        }
-        
         updateSwordHitbox();
     }
     
     private void updateSwordHitbox() {
-        int len = 14;
+        if (!attacking) {
+            swordHitbox.setBounds(0, 0, 0, 0);
+            return;
+        }
+        
+        int len = 16;
+        int w = 8;
         switch (direction) {
-            case 0: swordHitbox.setBounds(worldX + 2, worldY - len, 12, len); break;
-            case 1: swordHitbox.setBounds(worldX + 16, worldY + 2, len, 12); break;
-            case 2: swordHitbox.setBounds(worldX + 2, worldY + 16, 12, len); break;
-            case 3: swordHitbox.setBounds(worldX - len, worldY + 2, len, 12); break;
+            case 0: swordHitbox.setBounds(worldX + 4, worldY - len, w, len); break;
+            case 1: swordHitbox.setBounds(worldX + 16, worldY + 4, len, w); break;
+            case 2: swordHitbox.setBounds(worldX + 4, worldY + 16, w, len); break;
+            case 3: swordHitbox.setBounds(worldX - len, worldY + 4, len, w); break;
         }
     }
     
     public void render(Graphics2D g2) {
         if (invulnerableFrames > 0 && (invulnerableFrames / 4) % 2 == 0) return;
         
-        BufferedImage[][] sprites = attacking ? attackFrames : walkFrames;
-        BufferedImage img = sprites[direction][frame];
+        Image[][] sprites = attacking ? attackImages : walkImages;
+        int frame = moving ? ((System.currentTimeMillis() / 150) % 2 == 0 ? 0 : 1) : 0;
+        Image img = sprites[direction][frame];
         
         int x = worldX;
         int y = worldY;
@@ -147,7 +147,7 @@ public class ZeldaPlayer {
                 g2.drawImage(img, x, y, w, h, null);
             }
         } else {
-            g2.setColor(new Color(0, 128, 0));
+            g2.setColor(new Color(0, 168, 0));
             g2.fillRect(x, y, w, h);
         }
     }
@@ -165,7 +165,7 @@ public class ZeldaPlayer {
     public void setPosition(int x, int y) { worldX = x; worldY = y; }
     
     public Rectangle getHitbox() { return new Rectangle(worldX + 2, worldY + 2, 12, 12); }
-    public Rectangle getSwordHitbox() { return attacking ? swordHitbox : new Rectangle(0,0,0,0); }
+    public Rectangle getSwordHitbox() { return swordHitbox; }
     
     public boolean isDead() { return health <= 0; }
     public boolean isAttacking() { return attacking; }
@@ -173,6 +173,8 @@ public class ZeldaPlayer {
     public void setSword(boolean v) { hasSword = v; }
     public boolean hasBoomerang() { return hasBoomerang; }
     public void setBoomerang(boolean v) { hasBoomerang = v; }
+    public boolean hasSwordHit() { return swordHit; }
+    public void setSwordHit(boolean v) { swordHit = v; }
     
     public int getWorldX() { return worldX; }
     public int getWorldY() { return worldY; }
