@@ -6,13 +6,20 @@ import javax.imageio.ImageIO;
 import java.io.File;
 
 public class OverworldRenderer {
-    private static final int ROOM_WIDTH = 256;
-    private static final int ROOM_HEIGHT = 176;
     private static final int MAP_COLS = 16;
     private static final int MAP_ROWS = 8;
+    public static final int DISPLAY_WIDTH = 256;
+    public static final int DISPLAY_HEIGHT = 176;
+    
+    private int sourceRoomWidth = 256;
+    private int sourceRoomHeight = 168;
     
     private BufferedImage overworldMap;
     private BufferedImage[][] roomCache;
+    private boolean mapLoaded = false;
+
+    private static final int GROUND_COLOR = 0xfcd8a8;
+    private static final int COLOR_TOLERANCE = 40;
     
     public OverworldRenderer() {
         roomCache = new BufferedImage[MAP_COLS][MAP_ROWS];
@@ -24,31 +31,31 @@ public class OverworldRenderer {
             File mapFile = new File("sprites/Worlds/entire_worldmap_single_image.png");
             if (mapFile.exists()) {
                 overworldMap = ImageIO.read(mapFile);
+                mapLoaded = true;
+                
+                sourceRoomWidth = overworldMap.getWidth() / MAP_COLS;
+                sourceRoomHeight = overworldMap.getHeight() / MAP_ROWS;
+                
+                System.out.println("[Map] Loaded: " + overworldMap.getWidth() + "x" + overworldMap.getHeight() +
+                    " -> Room: " + sourceRoomWidth + "x" + sourceRoomHeight);
+            } else {
+                System.err.println("[Map] File not found!");
             }
         } catch (Exception e) {
-            System.err.println("Failed to load overworld map: " + e.getMessage());
+            System.err.println("[Map] Load failed: " + e.getMessage());
         }
     }
     
     public BufferedImage getRoomImage(int roomX, int roomY) {
-        if (roomX < 0 || roomX >= MAP_COLS || roomY < 0 || roomY >= MAP_ROWS) {
-            return null;
-        }
+        if (roomX < 0 || roomX >= MAP_COLS || roomY < 0 || roomY >= MAP_ROWS) return null;
+        if (roomCache[roomX][roomY] != null) return roomCache[roomX][roomY];
+        if (overworldMap == null) return null;
         
-        if (roomCache[roomX][roomY] != null) {
-            return roomCache[roomX][roomY];
-        }
+        int sx = roomX * sourceRoomWidth;
+        int sy = roomY * sourceRoomHeight;
         
-        if (overworldMap == null) {
-            return null;
-        }
-        
-        int startX = roomX * ROOM_WIDTH;
-        int startY = roomY * ROOM_HEIGHT;
-        
-        if (startX + ROOM_WIDTH <= overworldMap.getWidth() && 
-            startY + ROOM_HEIGHT <= overworldMap.getHeight()) {
-            roomCache[roomX][roomY] = overworldMap.getSubimage(startX, startY, ROOM_WIDTH, ROOM_HEIGHT);
+        if (sx + sourceRoomWidth <= overworldMap.getWidth() && sy + sourceRoomHeight <= overworldMap.getHeight()) {
+            roomCache[roomX][roomY] = overworldMap.getSubimage(sx, sy, sourceRoomWidth, sourceRoomHeight);
         }
         
         return roomCache[roomX][roomY];
@@ -57,56 +64,65 @@ public class OverworldRenderer {
     public void renderRoom(Graphics2D g2, int roomX, int roomY) {
         BufferedImage roomImg = getRoomImage(roomX, roomY);
         if (roomImg != null) {
-            g2.drawImage(roomImg, 0, 0, null);
+            g2.drawImage(roomImg, 0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, null);
         } else {
             g2.setColor(new Color(124, 252, 0));
-            g2.fillRect(0, 0, ROOM_WIDTH, ROOM_HEIGHT);
+            g2.fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+            g2.setColor(Color.RED);
+            g2.drawString("Room " + roomX + "," + roomY + " missing", 60, 88);
         }
     }
     
-    public boolean isPixelWalkable(int roomX, int roomY, int pixelX, int pixelY) {
+    public boolean isGroundColor(int roomX, int roomY, int displayX, int displayY) {
         BufferedImage roomImg = getRoomImage(roomX, roomY);
         if (roomImg == null) return true;
         
-        if (pixelX < 0 || pixelX >= ROOM_WIDTH || pixelY < 0 || pixelY >= ROOM_HEIGHT) {
-            return false;
-        }
+        int srcX = (int)(displayX * (double)sourceRoomWidth / DISPLAY_WIDTH);
+        int srcY = (int)(displayY * (double)sourceRoomHeight / DISPLAY_HEIGHT);
         
-        int rgb = roomImg.getRGB(pixelX, pixelY);
+        srcX = Math.max(0, Math.min(srcX, sourceRoomWidth - 1));
+        srcY = Math.max(0, Math.min(srcY, sourceRoomHeight - 1));
+        
+        int rgb = roomImg.getRGB(srcX, srcY) & 0xFFFFFF;
+        
         int r = (rgb >> 16) & 0xFF;
         int g = (rgb >> 8) & 0xFF;
         int b = rgb & 0xFF;
         
-        if (b > 180 && r < 100 && g < 150) return false;
+        int gr = (GROUND_COLOR >> 16) & 0xFF;
+        int gg = (GROUND_COLOR >> 8) & 0xFF;
+        int gb = GROUND_COLOR & 0xFF;
         
-        if (r > 100 && g > 80 && g < 130 && b < 80) return false;
-        
-        if (r < 60 && g < 60 && b < 60) return false;
-        
-        if (r > 50 && r < 120 && g > 80 && g < 150 && b < 80) return false;
-        
-        return true;
+        return Math.abs(r - gr) < COLOR_TOLERANCE && 
+               Math.abs(g - gg) < COLOR_TOLERANCE && 
+               Math.abs(b - gb) < COLOR_TOLERANCE;
     }
     
-    public boolean isTileWalkable(int roomX, int roomY, int tileX, int tileY) {
-        int px = tileX * 16 + 8;
-        int py = tileY * 16 + 8;
-        return isPixelWalkable(roomX, roomY, px, py);
-    }
-    
-    public boolean isWaterAt(int roomX, int roomY, int pixelX, int pixelY) {
+    public int[][] generateCollisionGrid(int roomX, int roomY) {
+        int tilesX = 16;
+        int tilesY = 11;
+        int[][] grid = new int[tilesX][tilesY];
+        
         BufferedImage roomImg = getRoomImage(roomX, roomY);
-        if (roomImg == null) return false;
-        
-        if (pixelX < 0 || pixelX >= ROOM_WIDTH || pixelY < 0 || pixelY >= ROOM_HEIGHT) {
-            return false;
+        if (roomImg == null) {
+            for (int x = 0; x < tilesX; x++) {
+                for (int y = 0; y < tilesY; y++) {
+                    grid[x][y] = (x == 0 || x == tilesX-1 || y == 0 || y == tilesY-1) ? 1 : 0;
+                }
+            }
+            return grid;
         }
         
-        int rgb = roomImg.getRGB(pixelX, pixelY);
-        int r = (rgb >> 16) & 0xFF;
-        int g = (rgb >> 8) & 0xFF;
-        int b = rgb & 0xFF;
+        for (int tx = 0; tx < tilesX; tx++) {
+            for (int ty = 0; ty < tilesY; ty++) {
+                int centerX = tx * 16 + 8;
+                int centerY = ty * 16 + 8;
+                grid[tx][ty] = isGroundColor(roomX, roomY, centerX, centerY) ? 0 : 1;
+            }
+        }
         
-        return (b > 180 && r < 100 && g < 150);
+        return grid;
     }
+    
+    public boolean isMapLoaded() { return mapLoaded; }
 }

@@ -15,10 +15,11 @@ public class ZeldaRoom {
     private boolean visited = false;
     
     private static OverworldRenderer overworldRenderer;
+    private static CollisionMap collisionMap;
     
-    public static final int ROOM_WIDTH = 16;
-    public static final int ROOM_HEIGHT = 11;
     public static final int TILE_SIZE = 16;
+    public static final int TILES_X = 16;
+    public static final int TILES_Y = 11;
 
     public ZeldaRoom(int roomX, int roomY) {
         this.roomX = roomX;
@@ -27,69 +28,44 @@ public class ZeldaRoom {
         if (overworldRenderer == null) {
             overworldRenderer = new OverworldRenderer();
         }
+        if (collisionMap == null) {
+            collisionMap = new CollisionMap();
+            collisionMap.setRenderer(overworldRenderer);
+        }
     }
     
     public void spawnEnemies() {
-        if (enemies.isEmpty() && !cleared) {
-            java.util.Random rand = new java.util.Random(roomX * 100 + roomY + 999);
+        if (!enemies.isEmpty() || cleared) return;
+        if (roomX == 7 && roomY == 7) return;
+        
+        java.util.Random rand = new java.util.Random(roomX * 100 + roomY);
+        int numEnemies = 1 + rand.nextInt(3);
+        
+        for (int i = 0; i < numEnemies; i++) {
+            Point spawn = findWalkableSpawn(rand);
+            if (spawn == null) continue;
             
-            if (roomX == 7 && roomY == 7) return;
+            ZeldaEnemy enemy;
+            double type = rand.nextDouble();
             
-            int numEnemies = 1 + rand.nextInt(4);
-            for (int i = 0; i < numEnemies; i++) {
-                Point spawnPoint = findWalkableSpawn(rand);
-                if (spawnPoint == null) continue;
-                
-                int ex = spawnPoint.x;
-                int ey = spawnPoint.y;
-                
-                ZeldaEnemy enemy;
-                double type = rand.nextDouble();
-                
-                if (roomY <= 2) {
-                    if (type < 0.5) {
-                        enemy = new zelda.enemies.Octorok(ex, ey, rand.nextBoolean());
-                    } else if (type < 0.8) {
-                        enemy = new zelda.enemies.Tektite(ex, ey, rand.nextBoolean());
-                    } else {
-                        enemy = new zelda.enemies.Peahat(ex, ey);
-                    }
-                } else if (roomY <= 4) {
-                    if (type < 0.35) {
-                        enemy = new zelda.enemies.Octorok(ex, ey, rand.nextBoolean());
-                    } else if (type < 0.65) {
-                        enemy = new zelda.enemies.Moblin(ex, ey, rand.nextBoolean());
-                    } else if (type < 0.9) {
-                        enemy = new zelda.enemies.Tektite(ex, ey, rand.nextBoolean());
-                    } else {
-                        enemy = new zelda.enemies.Leever(ex, ey, rand.nextBoolean());
-                    }
-                } else {
-                    if (type < 0.3) {
-                        enemy = new zelda.enemies.Octorok(ex, ey, true);
-                    } else if (type < 0.5) {
-                        enemy = new zelda.enemies.Moblin(ex, ey, rand.nextBoolean());
-                    } else if (type < 0.7) {
-                        enemy = new zelda.enemies.Stalfos(ex, ey);
-                    } else if (type < 0.85) {
-                        enemy = new zelda.enemies.Keese(ex, ey, rand.nextBoolean());
-                    } else {
-                        enemy = new zelda.enemies.Leever(ex, ey, true);
-                    }
-                }
-                enemies.add(enemy);
+            if (type < 0.5) {
+                enemy = new zelda.enemies.Octorok(spawn.x, spawn.y, rand.nextBoolean());
+            } else if (type < 0.75) {
+                enemy = new zelda.enemies.Moblin(spawn.x, spawn.y, rand.nextBoolean());
+            } else {
+                enemy = new zelda.enemies.Tektite(spawn.x, spawn.y, rand.nextBoolean());
             }
+            enemies.add(enemy);
         }
     }
     
     private Point findWalkableSpawn(java.util.Random rand) {
         for (int attempt = 0; attempt < 20; attempt++) {
-            int x = 32 + rand.nextInt(192);
-            int y = 32 + rand.nextInt(96);
+            int tx = 2 + rand.nextInt(12);
+            int ty = 2 + rand.nextInt(7);
             
-            if (isWalkable(x, y) && isWalkable(x + 12, y) && 
-                isWalkable(x, y + 12) && isWalkable(x + 12, y + 12)) {
-                return new Point(x, y);
+            if (collisionMap.getTileType(roomX, roomY, tx, ty).walkable) {
+                return new Point(tx * TILE_SIZE + 4, ty * TILE_SIZE + 4);
             }
         }
         return new Point(128, 88);
@@ -122,24 +98,17 @@ public class ZeldaRoom {
             
             if (player.isAttacking() && player.getSwordHitbox().intersects(enemy.getHitbox())) {
                 enemy.damage(1);
-                if (audio != null) audio.playSFX("07. Collect Item.wav");
             }
         }
         
-        if (enemies.isEmpty() && !cleared) {
-            cleared = true;
-        }
+        if (enemies.isEmpty() && !cleared) cleared = true;
         
         Iterator<Item> itemIter = items.iterator();
         while (itemIter.hasNext()) {
             Item item = itemIter.next();
-            if (!item.isActive()) {
-                itemIter.remove();
-                continue;
-            }
+            if (!item.isActive()) { itemIter.remove(); continue; }
             
             item.update();
-            
             if (item.getHitbox().intersects(player.getHitbox())) {
                 item.applyToPlayer(player);
                 if (audio != null) audio.playSFX("04. Small Item Get.wav");
@@ -149,16 +118,9 @@ public class ZeldaRoom {
         Iterator<Projectile> projIter = projectiles.iterator();
         while (projIter.hasNext()) {
             Projectile proj = projIter.next();
-            if (!proj.isActive()) {
-                projIter.remove();
-                continue;
-            }
+            if (!proj.isActive()) { projIter.remove(); continue; }
             
             proj.update();
-            
-            if (!isWalkable((int)proj.getX(), (int)proj.getY())) {
-                proj.deactivate();
-            }
             
             if (!proj.isPlayerOwned() && proj.getHitbox().intersects(player.getHitbox())) {
                 player.damage(1);
@@ -180,38 +142,30 @@ public class ZeldaRoom {
     }
     
     private void spawnDrop(double x, double y) {
-        double rand = Math.random();
-        Item.ItemType type;
-        
-        if (rand < 0.45) {
-            type = Item.ItemType.HEART;
-        } else if (rand < 0.65) {
-            type = Item.ItemType.RUPEE_GREEN;
-        } else if (rand < 0.80) {
-            type = Item.ItemType.RUPEE_BLUE;
-        } else if (rand < 0.92) {
-            type = Item.ItemType.KEY;
-        } else {
-            type = Item.ItemType.BOMB;
-        }
-        
+        double r = Math.random();
+        Item.ItemType type = r < 0.5 ? Item.ItemType.HEART : 
+                            r < 0.75 ? Item.ItemType.RUPEE_GREEN : Item.ItemType.RUPEE_BLUE;
         items.add(new Item(x, y, type));
     }
     
     public boolean isWalkable(int x, int y) {
-        if (x < 8 || x > 248 || y < 8 || y > 168) {
-            return false;
+        if (x < 0 || x >= 256 || y < 0 || y >= 176) {
+            return true;
         }
-        return overworldRenderer.isPixelWalkable(roomX, roomY, x, y);
+        return collisionMap.isWalkable(roomX, roomY, x, y);
     }
     
     public void checkPlayerCollision(ZeldaPlayer player) {
         Rectangle box = player.getHitbox();
         
-        boolean blocked = !isWalkable(box.x, box.y) ||
-                         !isWalkable(box.x + box.width, box.y) ||
-                         !isWalkable(box.x, box.y + box.height) ||
-                         !isWalkable(box.x + box.width, box.y + box.height);
+        if (box.x < 4 || box.x > 240 || box.y < 4 || box.y > 156) {
+            return;
+        }
+        
+        boolean blocked = !isWalkable(box.x + 2, box.y + 2) ||
+                         !isWalkable(box.x + box.width - 2, box.y + 2) ||
+                         !isWalkable(box.x + 2, box.y + box.height - 2) ||
+                         !isWalkable(box.x + box.width - 2, box.y + box.height - 2);
         
         if (blocked) {
             player.rollbackPosition();
@@ -221,30 +175,14 @@ public class ZeldaRoom {
     public void render(Graphics2D g2) {
         overworldRenderer.renderRoom(g2, roomX, roomY);
         
-        for (Item item : items) {
-            item.render(g2);
-        }
-        
-        for (ZeldaEnemy enemy : enemies) {
-            enemy.render(g2);
-        }
-        
-        for (Projectile proj : projectiles) {
-            proj.render(g2);
-        }
+        for (Item item : items) item.render(g2);
+        for (ZeldaEnemy enemy : enemies) enemy.render(g2);
+        for (Projectile proj : projectiles) proj.render(g2);
     }
     
-    public void addProjectile(Projectile proj) {
-        projectiles.add(proj);
-    }
-    
+    public void addProjectile(Projectile proj) { projectiles.add(proj); }
     public int getRoomX() { return roomX; }
     public int getRoomY() { return roomY; }
     public boolean isCleared() { return cleared; }
-    public boolean isVisited() { return visited; }
     public List<ZeldaEnemy> getEnemies() { return enemies; }
-    
-    public boolean hasWaterAt(int x, int y) {
-        return overworldRenderer.isWaterAt(roomX, roomY, x, y);
-    }
 }

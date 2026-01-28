@@ -8,186 +8,136 @@ import java.io.File;
 public class ZeldaHUD {
     private ZeldaPlayer player;
     
-    private BufferedImage heartFull;
-    private BufferedImage heartHalf;
-    private BufferedImage heartEmpty;
-    private BufferedImage rupeeIcon;
-    private BufferedImage keyIcon;
-    private BufferedImage bombIcon;
-    private BufferedImage swordIcon;
+    private BufferedImage heartFull, heartHalf, heartEmpty;
+    private BufferedImage rupeeIcon, keyIcon, bombIcon, swordIcon;
     
-    private static final Color NES_BLACK = new Color(0, 0, 0);
-    private static final Color NES_GRAY = new Color(116, 116, 116);
-    private static final Color NES_WHITE = Color.WHITE;
-    private static final Color NES_RED = new Color(180, 56, 0);
-    private static final Color NES_DARK_GRAY = new Color(60, 60, 60);
+    private static final Color BG_COLOR = new Color(0, 0, 0);
+    private static final Color TEXT_COLOR = Color.WHITE;
+    private static final Color LIFE_COLOR = new Color(180, 56, 0);
     
     public ZeldaHUD() {
         loadSprites();
     }
     
     private void loadSprites() {
-        String basePath = "sprites/Objects/";
+        String path = "sprites/Objects/";
+        heartFull = loadImg(path + "Life1.gif");
+        heartHalf = loadImg(path + "Life2.gif");
+        heartEmpty = loadImg(path + "Life3.gif");
+        rupeeIcon = loadImg(path + "Rupy.gif");
+        keyIcon = loadImg(path + "Key.gif");
+        bombIcon = loadImg(path + "Bomb.gif");
+        swordIcon = loadImg(path + "Wooden Sword (Up).gif");
+    }
+    
+    private BufferedImage loadImg(String path) {
         try {
-            File f1 = new File(basePath + "Life1.gif");
-            File f2 = new File(basePath + "Life2.gif");
-            File f3 = new File(basePath + "Life3.gif");
-            
-            if (f1.exists()) heartFull = ImageIO.read(f1);
-            if (f2.exists()) heartHalf = ImageIO.read(f2);
-            if (f3.exists()) heartEmpty = ImageIO.read(f3);
-            
-            File rupeeFile = new File(basePath + "Rupy.gif");
-            File keyFile = new File(basePath + "Key.gif");
-            File bombFile = new File(basePath + "Bomb.gif");
-            File swordFile = new File(basePath + "Wooden Sword (Up).gif");
-            
-            if (rupeeFile.exists()) rupeeIcon = ImageIO.read(rupeeFile);
-            if (keyFile.exists()) keyIcon = ImageIO.read(keyFile);
-            if (bombFile.exists()) bombIcon = ImageIO.read(bombFile);
-            if (swordFile.exists()) swordIcon = ImageIO.read(swordFile);
+            File f = new File(path);
+            if (f.exists()) return ImageIO.read(f);
         } catch (Exception e) {}
+        return null;
     }
     
-    public void setPlayer(ZeldaPlayer player) {
-        this.player = player;
-    }
+    public void setPlayer(ZeldaPlayer p) { this.player = p; }
     
-    public void render(Graphics2D g2, ZeldaRoom currentRoom) {
-        g2.setColor(NES_BLACK);
+    public void render(Graphics2D g2, ZeldaRoom room) {
+        g2.setColor(BG_COLOR);
         g2.fillRect(0, 0, 256, 56);
         
-        renderMinimap(g2, currentRoom);
-        
-        g2.setColor(NES_GRAY);
-        g2.drawLine(88, 8, 88, 48);
-        
+        renderMinimap(g2, room);
         renderInventory(g2);
-        
-        renderLifeSection(g2);
+        renderLife(g2);
     }
     
     private void renderMinimap(Graphics2D g2, ZeldaRoom room) {
-        int mapX = 16;
-        int mapY = 16;
-        int mapWidth = 64;
-        int mapHeight = 32;
+        int x = 16, y = 18, w = 64, h = 32;
         
-        g2.setColor(NES_GRAY);
-        g2.drawRect(mapX - 1, mapY - 1, mapWidth + 2, mapHeight + 2);
-        
-        g2.setColor(NES_DARK_GRAY);
-        g2.fillRect(mapX, mapY, mapWidth, mapHeight);
+        g2.setColor(new Color(60, 60, 60));
+        g2.fillRect(x, y, w, h);
+        g2.setColor(new Color(116, 116, 116));
+        g2.drawRect(x-1, y-1, w+1, h+1);
         
         if (room != null) {
-            int screenW = mapWidth / 16;
-            int screenH = mapHeight / 8;
-            int posX = mapX + room.getRoomX() * screenW;
-            int posY = mapY + room.getRoomY() * screenH;
-            
-            g2.setColor(new Color(0, 168, 0));
-            g2.fillRect(posX, posY, screenW, screenH);
+            int dotX = x + (room.getRoomX() * w / 16);
+            int dotY = y + (room.getRoomY() * h / 8);
+            g2.setColor(Color.GREEN);
+            g2.fillRect(dotX, dotY, 4, 4);
         }
     }
     
     private void renderInventory(Graphics2D g2) {
         if (player == null) return;
         
-        int invX = 96;
-        int invY = 8;
+        int x = 96;
         
-        g2.setColor(NES_GRAY);
-        g2.drawRect(invX + 4, invY + 16, 24, 16);
-        g2.drawRect(invX + 32, invY + 16, 24, 16);
+        g2.setColor(new Color(116, 116, 116));
+        g2.drawRect(x, 24, 24, 16);
+        g2.drawRect(x + 28, 24, 24, 16);
         
-        g2.setColor(NES_WHITE);
-        g2.setFont(new Font("Monospaced", Font.PLAIN, 8));
-        g2.drawString("B", invX + 12, invY + 12);
-        g2.drawString("A", invX + 40, invY + 12);
+        g2.setColor(TEXT_COLOR);
+        g2.setFont(new Font("Monospaced", Font.PLAIN, 10));
+        g2.drawString("B", x + 8, 20);
+        g2.drawString("A", x + 36, 20);
         
         if (player.hasSword() && swordIcon != null) {
-            g2.drawImage(swordIcon, invX + 36, invY + 18, 16, 14, null);
-        } else if (player.hasSword()) {
-            g2.setColor(NES_WHITE);
-            g2.fillRect(invX + 40, invY + 19, 8, 12);
+            g2.drawImage(swordIcon, x + 32, 26, 16, 12, null);
         }
         
-        int statY = invY + 38;
+        int statX = x;
+        int statY = 48;
         
-        g2.setColor(NES_WHITE);
-        g2.setFont(new Font("Monospaced", Font.PLAIN, 8));
+        g2.setFont(new Font("Monospaced", Font.PLAIN, 10));
         
-        if (rupeeIcon != null) {
-            g2.drawImage(rupeeIcon, invX - 2, statY - 8, 8, 8, null);
-        } else {
-            g2.setColor(new Color(0, 168, 0));
-            g2.drawString("X", invX, statY);
-        }
-        g2.setColor(NES_WHITE);
-        g2.drawString(String.format("%02d", player.getRupees()), invX + 10, statY);
+        g2.setColor(new Color(0, 200, 0));
+        g2.drawString("$", statX, statY);
+        g2.setColor(TEXT_COLOR);
+        g2.drawString(String.format("%03d", player.getRupees()), statX + 10, statY);
         
-        if (keyIcon != null) {
-            g2.drawImage(keyIcon, invX + 30, statY - 8, 8, 8, null);
-        } else {
-            g2.setColor(new Color(252, 152, 56));
-            g2.drawString("X", invX + 32, statY);
-        }
-        g2.setColor(NES_WHITE);
-        g2.drawString(String.format("%02d", player.getKeys()), invX + 42, statY);
+        g2.setColor(new Color(255, 180, 0));
+        g2.drawString("K", statX + 44, statY);
+        g2.setColor(TEXT_COLOR);
+        g2.drawString(String.format("%02d", player.getKeys()), statX + 54, statY);
         
-        if (bombIcon != null) {
-            g2.drawImage(bombIcon, invX - 2, statY + 2, 8, 8, null);
-        } else {
-            g2.setColor(new Color(0, 88, 248));
-            g2.drawString("X", invX, statY + 10);
-        }
-        g2.setColor(NES_WHITE);
-        g2.drawString(String.format("%02d", player.getBombs()), invX + 10, statY + 10);
+        g2.setColor(new Color(100, 100, 255));
+        g2.drawString("B", statX + 78, statY);
+        g2.setColor(TEXT_COLOR);
+        g2.drawString(String.format("%02d", player.getBombs()), statX + 88, statY);
     }
     
-    private void renderLifeSection(Graphics2D g2) {
+    private void renderLife(Graphics2D g2) {
         if (player == null) return;
         
-        int lifeX = 168;
-        int lifeY = 16;
+        int x = 176, y = 16;
         
-        g2.setColor(NES_RED);
-        g2.setFont(new Font("Monospaced", Font.BOLD, 8));
-        g2.drawString("-LIFE-", lifeX + 16, lifeY);
+        g2.setColor(LIFE_COLOR);
+        g2.setFont(new Font("Monospaced", Font.BOLD, 10));
+        g2.drawString("-LIFE-", x + 8, y);
         
-        int heartX = lifeX;
-        int heartY = lifeY + 8;
-        int heartSize = 8;
-        int spacing = 8;
-        
+        int heartX = x;
+        int heartY = y + 8;
+        int size = 8;
         int maxHearts = player.getMaxHealth() / 2;
         int fullHearts = player.getHealth() / 2;
-        int halfHeart = player.getHealth() % 2;
+        boolean halfHeart = player.getHealth() % 2 == 1;
         
         for (int i = 0; i < maxHearts; i++) {
-            int hx = heartX + (i % 8) * spacing;
-            int hy = heartY + (i / 8) * (spacing + 2);
+            int hx = heartX + (i % 8) * (size + 1);
+            int hy = heartY + (i / 8) * (size + 2);
             
-            BufferedImage heartImg;
+            BufferedImage img;
             if (i < fullHearts) {
-                heartImg = heartFull;
-            } else if (i == fullHearts && halfHeart > 0) {
-                heartImg = heartHalf;
+                img = heartFull;
+            } else if (i == fullHearts && halfHeart) {
+                img = heartHalf;
             } else {
-                heartImg = heartEmpty;
+                img = heartEmpty;
             }
             
-            if (heartImg != null) {
-                g2.drawImage(heartImg, hx, hy, heartSize, heartSize, null);
+            if (img != null) {
+                g2.drawImage(img, hx, hy, size, size, null);
             } else {
-                if (i < fullHearts) {
-                    g2.setColor(NES_RED);
-                } else if (i == fullHearts && halfHeart > 0) {
-                    g2.setColor(new Color(180, 100, 100));
-                } else {
-                    g2.setColor(NES_DARK_GRAY);
-                }
-                g2.fillRect(hx, hy, heartSize - 1, heartSize - 1);
+                g2.setColor(i < fullHearts ? Color.RED : Color.DARK_GRAY);
+                g2.fillRect(hx, hy, size, size);
             }
         }
     }
