@@ -1,94 +1,116 @@
 package zelda.enemies;
 
 import zelda.*;
+import java.awt.*;
 import java.util.List;
+import javax.swing.ImageIcon;
+import java.io.File;
 
 public class Moblin extends ZeldaEnemy {
+    private static final double BLACK_SPEED = 0.5;
+    private static final double RED_SPEED = 0.8;
+    private static final int SHOOT_RANGE = 80;
+    private static final int SHOOT_COOLDOWN = 100;
+    private static final double SPEAR_SPEED = 2.5;
+
+    private boolean isRed;
     private int shootTimer = 0;
-    private static final int SHOOT_COOLDOWN = 120;
-    
-    private boolean isBlack;
-    private double patrolStartX, patrolEndX;
-    
-    public Moblin(double x, double y, boolean black) {
-        super(x, y, black ? 3 : 2, AIType.PATROL);
-        this.isBlack = black;
-        this.speed = black ? 0.7 : 0.6;
-        this.patrolStartX = x - 40;
-        this.patrolEndX = x + 40;
-        loadMoblinSprite();
+    private Image frontSprite;
+    private Image backSprite;
+    private Image leftSprite;
+
+    public Moblin(double x, double y, boolean red) {
+        super(x, y, red ? 3 : 2, AIType.SHOOTER);
+        this.isRed = red;
+        this.speed = red ? RED_SPEED : BLACK_SPEED;
+        loadMoblinSprites();
     }
-    
-    private void loadMoblinSprite() {
-        String color = isBlack ? "Black" : "Red";
-        sprite = loadSprite("sprites/Enemies/Moblin - " + color + " (Front).gif");
+
+    private void loadMoblinSprites() {
+        String color = isRed ? "Red" : "Black";
+        frontSprite = loadGif("sprites/Enemies/Moblin - " + color + " (Front).gif");
+        backSprite = loadGif("sprites/Enemies/Moblin - " + color + " (Back).gif");
+        leftSprite = loadGif("sprites/Enemies/Moblin - " + color + " (Left).gif");
     }
-    
+
+    private Image loadGif(String path) {
+        File f = new File(path);
+        if (f.exists()) return new ImageIcon(path).getImage();
+        return null;
+    }
+
     @Override
     public void update(ZeldaPlayer player, ZeldaRoom room, List<Projectile> projectiles) {
         oldX = x;
         oldY = y;
-        
+
         if (damageTimer > 0) damageTimer--;
+        if (invulnerableFrames > 0) invulnerableFrames--;
         if (shootTimer > 0) shootTimer--;
-        
+
         animationCounter++;
-        if (animationCounter >= 12) {
+        if (animationCounter >= 10) {
             animationCounter = 0;
             animationFrame = (animationFrame + 1) % 2;
         }
-        
-        doPatrol(room);
-        
+
+        randomMove(room);
+
         double dx = player.getWorldX() - x;
         double dy = player.getWorldY() - y;
         double dist = Math.sqrt(dx * dx + dy * dy);
-        
-        if (dist < 80 && shootTimer == 0) {
-            shootSpear(player, projectiles);
+
+        if (dist < SHOOT_RANGE && shootTimer == 0) {
+            shootSpear(projectiles);
             shootTimer = SHOOT_COOLDOWN;
         }
     }
-    
-    private void doPatrol(ZeldaRoom room) {
-        if (direction == 1) {
-            x += speed;
-            if (x > patrolEndX) direction = 3;
-        } else if (direction == 3) {
-            x -= speed;
-            if (x < patrolStartX) direction = 1;
-        } else {
-            if (Math.random() < 0.01) {
-                direction = Math.random() < 0.5 ? 1 : 3;
-            }
+
+    private void shootSpear(List<Projectile> projectiles) {
+        double vx = 0, vy = 0;
+        switch (direction) {
+            case 0: vy = -SPEAR_SPEED; break;
+            case 1: vx = -SPEAR_SPEED; break;
+            case 2: vy = SPEAR_SPEED; break;
+            case 3: vx = SPEAR_SPEED; break;
         }
-        
-        int centerX = (int)(x + width/2);
-        int centerY = (int)(y + height/2);
-        
-        if (!room.isWalkable(centerX, centerY)) {
-            x = oldX;
-            y = oldY;
-            direction = (direction == 1) ? 3 : 1;
-        }
-        
-        x = Math.max(8, Math.min(x, 256 - width - 8));
-        y = Math.max(8, Math.min(y, 176 - height - 8));
+        Projectile p = new Projectile(x + width/2, y + height/2, vx, vy, false);
+        p.setColor(isRed ? new Color(180, 56, 0) : new Color(80, 80, 80));
+        p.setSize(4, 12);
+        projectiles.add(p);
     }
-    
-    private void shootSpear(ZeldaPlayer player, List<Projectile> projectiles) {
-        double dx = player.getWorldX() - x;
-        double dy = player.getWorldY() - y;
-        double dist = Math.sqrt(dx * dx + dy * dy);
-        
-        if (dist > 0) {
-            double vx = (dx / dist) * 2.0;
-            double vy = (dy / dist) * 2.0;
-            
-            Projectile spear = new Projectile(x + 3, y + 3, vx, vy, false);
-            spear.setColor(new java.awt.Color(139, 69, 19));
-            spear.setSize(4, 12);
-            projectiles.add(spear);
+
+    @Override
+    public void render(Graphics2D g2) {
+        if (!active) return;
+
+        if (damageTimer > 0 && (damageTimer / 3) % 2 == 0) {
+            g2.setColor(Color.WHITE);
+            g2.fillRect((int)x, (int)y, width, height);
+            return;
+        }
+
+        int dx = (int) x;
+        int dy = (int) y;
+
+        switch (direction) {
+            case 2: // down
+                if (frontSprite != null) g2.drawImage(frontSprite, dx, dy, width, height, null);
+                break;
+            case 0: // up
+                if (backSprite != null) g2.drawImage(backSprite, dx, dy, width, height, null);
+                break;
+            case 1: // left
+                if (leftSprite != null) g2.drawImage(leftSprite, dx, dy, width, height, null);
+                break;
+            case 3: // right (flip left)
+                if (leftSprite != null) g2.drawImage(leftSprite, dx + width, dy, -width, height, null);
+                break;
+        }
+
+        if (frontSprite == null && leftSprite == null && backSprite == null) {
+            g2.setColor(isRed ? Color.RED : Color.DARK_GRAY);
+            g2.fillRect(dx, dy, width, height);
         }
     }
 }

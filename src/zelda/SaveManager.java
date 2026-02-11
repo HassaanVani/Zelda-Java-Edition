@@ -56,8 +56,8 @@ public class SaveManager {
         data.rupees = player.getRupees();
         data.keys = player.getKeys();
         data.bombs = player.getBombs();
-        data.playerX = player.getWorldX();
-        data.playerY = player.getWorldY();
+        data.playerX = (int) player.getWorldX();
+        data.playerY = (int) player.getWorldY();
         data.roomX = roomX;
         data.roomY = roomY;
         data.hasSword = player.hasSword();

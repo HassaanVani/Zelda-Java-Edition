@@ -11,6 +11,7 @@ public class KeyHandler implements KeyListener {
     public boolean enterPressed, escapePressed, spacePressed;
     public boolean zPressed, xPressed;
     public boolean startPressed, selectPressed;
+    public boolean gPressed;
     
     @Override
     public void keyTyped(KeyEvent e) {
@@ -56,6 +57,9 @@ public class KeyHandler implements KeyListener {
         if (code == KeyEvent.VK_BACK_SPACE) {
             selectPressed = true;
         }
+        if (code == KeyEvent.VK_G) {
+            gPressed = true;
+        }
     }
     
     @Override
@@ -94,6 +98,9 @@ public class KeyHandler implements KeyListener {
         }
         if (code == KeyEvent.VK_BACK_SPACE) {
             selectPressed = false;
+        }
+        if (code == KeyEvent.VK_G) {
+            gPressed = false;
         }
     }
 }

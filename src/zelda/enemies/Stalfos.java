@@ -42,19 +42,19 @@ public class Stalfos extends ZeldaEnemy {
             } else {
                 direction = dy > 0 ? 2 : 0;
             }
-        } else {
+        } else if (room != null) {
             randomMove(room);
         }
         
         int centerX = (int)(x + width/2);
         int centerY = (int)(y + height/2);
         
-        if (!room.isWalkable(centerX, centerY)) {
+        if (room != null && !room.isWalkable(centerX, centerY)) {
             x = oldX;
             y = oldY;
         }
         
-        x = Math.max(8, Math.min(x, 256 - width - 8));
-        y = Math.max(8, Math.min(y, 176 - height - 8));
+        x = Math.max(8, Math.min(x, ZeldaRoom.ROOM_PIXEL_W - width - 8));
+        y = Math.max(8, Math.min(y, ZeldaRoom.ROOM_PIXEL_H - height - 8));
     }
 }

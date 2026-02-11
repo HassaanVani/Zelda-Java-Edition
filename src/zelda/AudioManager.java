@@ -74,7 +74,7 @@ public class AudioManager {
     }
     
     public void playSFX(String filename) {
-        if (!sfxEnabled) return;
+        if (!sfxEnabled || filename == null || filename.isEmpty()) return;
         
         try {
             Clip sfx = sfxCache.get(filename);

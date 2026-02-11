@@ -2,187 +2,181 @@ package zelda;
 
 import java.awt.*;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 public class ZeldaRoom {
+    public static final int TILES_X = 16;
+    public static final int TILES_Y = 11;
+    public static final int TILE_SIZE = 16;
+    public static final int ROOM_PIXEL_W = TILES_X * TILE_SIZE;
+    public static final int ROOM_PIXEL_H = TILES_Y * TILE_SIZE;
+
+    public static final int ROOM_PLAY_LEFT = TILE_SIZE;
+    public static final int ROOM_PLAY_TOP = TILE_SIZE;
+    public static final int ROOM_PLAY_RIGHT = ROOM_PIXEL_W - TILE_SIZE;
+    public static final int ROOM_PLAY_BOTTOM = ROOM_PIXEL_H - TILE_SIZE;
+
+    public static final int MIN_ENEMIES = 2;
+    public static final int MAX_ENEMIES = 4;
+    public static final int SPAWN_MARGIN = 32;
+    private static final int SPAWN_ATTEMPTS = 20;
+
     private int roomX, roomY;
     private List<ZeldaEnemy> enemies = new ArrayList<>();
     private List<Item> items = new ArrayList<>();
     private List<Projectile> projectiles = new ArrayList<>();
-    
-    private boolean cleared = false;
     private boolean visited = false;
-    
-    private static OverworldRenderer overworldRenderer;
-    private static CollisionMap collisionMap;
-    
-    public static final int TILE_SIZE = 16;
-    public static final int TILES_X = 16;
-    public static final int TILES_Y = 11;
+    private boolean cleared = false;
+
+    private OverworldRenderer overworldRenderer;
+    private CollisionMap collisionMap;
 
     public ZeldaRoom(int roomX, int roomY) {
         this.roomX = roomX;
         this.roomY = roomY;
-        
-        if (overworldRenderer == null) {
-            overworldRenderer = new OverworldRenderer();
-        }
-        if (collisionMap == null) {
-            collisionMap = new CollisionMap();
-            collisionMap.setRenderer(overworldRenderer);
-        }
     }
-    
-    public void spawnEnemies() {
-        if (!enemies.isEmpty() || cleared) return;
-        if (roomX == 7 && roomY == 7) return;
-        
-        java.util.Random rand = new java.util.Random(roomX * 100 + roomY);
-        int numEnemies = 1 + rand.nextInt(3);
-        
-        for (int i = 0; i < numEnemies; i++) {
-            Point spawn = findWalkableSpawn(rand);
-            if (spawn == null) continue;
-            
-            ZeldaEnemy enemy;
-            double type = rand.nextDouble();
-            
-            if (type < 0.5) {
-                enemy = new zelda.enemies.Octorok(spawn.x, spawn.y, rand.nextBoolean());
-            } else if (type < 0.75) {
-                enemy = new zelda.enemies.Moblin(spawn.x, spawn.y, rand.nextBoolean());
-            } else {
-                enemy = new zelda.enemies.Tektite(spawn.x, spawn.y, rand.nextBoolean());
-            }
-            enemies.add(enemy);
-        }
-    }
-    
-    private Point findWalkableSpawn(java.util.Random rand) {
-        for (int attempt = 0; attempt < 20; attempt++) {
-            int tx = 2 + rand.nextInt(12);
-            int ty = 2 + rand.nextInt(7);
-            
-            if (collisionMap.getTileType(roomX, roomY, tx, ty).walkable) {
-                return new Point(tx * TILE_SIZE + 4, ty * TILE_SIZE + 4);
-            }
-        }
-        return new Point(128, 88);
-    }
-    
-    public void update(ZeldaPlayer player, CombatManager combat, AudioManager audio) {
+
+    public void initialize(OverworldRenderer renderer, CollisionMap collision) {
+        this.overworldRenderer = renderer;
+        this.collisionMap = collision;
         if (!visited) {
+            if (!isNoSpawnRoom()) spawnEnemies();
             visited = true;
-            spawnEnemies();
         }
-        
-        Iterator<ZeldaEnemy> enemyIter = enemies.iterator();
-        while (enemyIter.hasNext()) {
-            ZeldaEnemy enemy = enemyIter.next();
-            
-            if (!enemy.isActive()) {
-                enemyIter.remove();
-                if (Math.random() < 0.35) {
-                    spawnDrop(enemy.getX(), enemy.getY());
-                    if (audio != null) audio.playSFX("04. Small Item Get.wav");
+    }
+
+    private boolean isNoSpawnRoom() {
+        if (roomX == 7 && roomY == 7) return true;
+        if (roomX == 7 && roomY == 3) return true;
+        if (roomX == 7 && roomY == 6) return true;
+        return false;
+    }
+
+    private void spawnEnemies() {
+        int count = MIN_ENEMIES + (int)(Math.random() * (MAX_ENEMIES - MIN_ENEMIES + 1));
+        String biome = getBiome(roomX, roomY);
+
+        for (int i = 0; i < count; i++) {
+            for (int attempt = 0; attempt < SPAWN_ATTEMPTS; attempt++) {
+                double x = SPAWN_MARGIN + Math.random() * (ROOM_PIXEL_W - SPAWN_MARGIN * 2);
+                double y = SPAWN_MARGIN + Math.random() * (ROOM_PIXEL_H - SPAWN_MARGIN * 2);
+
+                if (isWalkable((int) x + 8, (int) y + 8)) {
+                    ZeldaEnemy enemy = createEnemyForBiome(biome, x, y);
+                    if (enemy != null) enemies.add(enemy);
+                    break;
                 }
-                continue;
-            }
-            
-            enemy.update(player, this, projectiles);
-            
-            if (enemy.getHitbox().intersects(player.getHitbox()) && enemy.canDamage()) {
-                player.damage(enemy.getDamage());
-            }
-            
-            if (player.isAttacking() && player.getSwordHitbox().intersects(enemy.getHitbox())) {
-                enemy.damage(1);
             }
         }
-        
-        if (enemies.isEmpty() && !cleared) cleared = true;
-        
-        Iterator<Item> itemIter = items.iterator();
-        while (itemIter.hasNext()) {
-            Item item = itemIter.next();
-            if (!item.isActive()) { itemIter.remove(); continue; }
-            
+    }
+
+    private String getBiome(int rx, int ry) {
+        if (ry <= 1 && rx >= 3 && rx <= 8) return "forest";
+        if (ry >= 5 && rx >= 8) return "graveyard";
+        if (ry <= 2 && rx >= 12) return "lake";
+        if (ry >= 3 && rx <= 3) return "desert";
+        if (ry >= 5) return "mountain";
+        return "field";
+    }
+
+    private ZeldaEnemy createEnemyForBiome(String biome, double x, double y) {
+        switch (biome) {
+            case "forest":
+                return Math.random() < 0.5
+                    ? new zelda.enemies.Octorok(x, y, Math.random() < 0.3)
+                    : new zelda.enemies.Moblin(x, y, Math.random() < 0.3);
+            case "graveyard":
+                return Math.random() < 0.6
+                    ? new zelda.enemies.Stalfos(x, y)
+                    : new zelda.enemies.Leever(x, y, Math.random() < 0.3);
+            case "lake":
+                return Math.random() < 0.7
+                    ? new zelda.enemies.Tektite(x, y, true)
+                    : new zelda.enemies.Peahat(x, y);
+            case "desert":
+                return Math.random() < 0.6
+                    ? new zelda.enemies.Leever(x, y, Math.random() < 0.3)
+                    : new zelda.enemies.Peahat(x, y);
+            case "mountain":
+                return Math.random() < 0.5
+                    ? new zelda.enemies.Tektite(x, y, false)
+                    : new zelda.enemies.Octorok(x, y, true);
+            default:
+                double roll = Math.random();
+                if (roll < 0.4) return new zelda.enemies.Octorok(x, y, false);
+                if (roll < 0.7) return new zelda.enemies.Moblin(x, y, false);
+                return new zelda.enemies.Tektite(x, y, false);
+        }
+    }
+
+    public void update(ZeldaPlayer player) {
+        for (int i = enemies.size() - 1; i >= 0; i--) {
+            ZeldaEnemy e = enemies.get(i);
+            e.update(player, this, projectiles);
+            if (!e.isAlive()) {
+                dropItem(e);
+                enemies.remove(i);
+            }
+        }
+
+        for (int i = projectiles.size() - 1; i >= 0; i--) {
+            Projectile p = projectiles.get(i);
+            p.update();
+            if (!p.isActive()) projectiles.remove(i);
+        }
+
+        for (int i = items.size() - 1; i >= 0; i--) {
+            Item item = items.get(i);
             item.update();
-            if (item.getHitbox().intersects(player.getHitbox())) {
-                item.applyToPlayer(player);
-                if (audio != null) audio.playSFX("04. Small Item Get.wav");
+            if (item.intersects(player.getHitbox())) {
+                item.applyEffect(player);
+                items.remove(i);
+            } else if (!item.isAlive()) {
+                items.remove(i);
             }
         }
-        
-        Iterator<Projectile> projIter = projectiles.iterator();
-        while (projIter.hasNext()) {
-            Projectile proj = projIter.next();
-            if (!proj.isActive()) { projIter.remove(); continue; }
-            
-            proj.update();
-            
-            if (!proj.isPlayerOwned() && proj.getHitbox().intersects(player.getHitbox())) {
-                player.damage(1);
-                proj.deactivate();
-            }
-            
-            if (proj.isPlayerOwned()) {
-                for (ZeldaEnemy enemy : enemies) {
-                    if (proj.getHitbox().intersects(enemy.getHitbox())) {
-                        enemy.damage(1);
-                        proj.deactivate();
-                        break;
-                    }
-                }
-            }
-        }
-        
-        checkPlayerCollision(player);
+
+        if (enemies.isEmpty()) cleared = true;
     }
-    
-    private void spawnDrop(double x, double y) {
-        double r = Math.random();
-        Item.ItemType type = r < 0.5 ? Item.ItemType.HEART : 
-                            r < 0.75 ? Item.ItemType.RUPEE_GREEN : Item.ItemType.RUPEE_BLUE;
-        items.add(new Item(x, y, type));
-    }
-    
-    public boolean isWalkable(int x, int y) {
-        if (x < 0 || x >= 256 || y < 0 || y >= 176) {
-            return true;
-        }
-        return collisionMap.isWalkable(roomX, roomY, x, y);
-    }
-    
-    public void checkPlayerCollision(ZeldaPlayer player) {
-        Rectangle box = player.getHitbox();
-        
-        if (box.x < 4 || box.x > 240 || box.y < 4 || box.y > 156) {
-            return;
-        }
-        
-        boolean blocked = !isWalkable(box.x + 2, box.y + 2) ||
-                         !isWalkable(box.x + box.width - 2, box.y + 2) ||
-                         !isWalkable(box.x + 2, box.y + box.height - 2) ||
-                         !isWalkable(box.x + box.width - 2, box.y + box.height - 2);
-        
-        if (blocked) {
-            player.rollbackPosition();
+
+    private void dropItem(ZeldaEnemy enemy) {
+        double roll = Math.random();
+        if (roll < 0.25) {
+            items.add(new Item(enemy.getX(), enemy.getY(), Item.ItemType.HEART));
+        } else if (roll < 0.35) {
+            items.add(new Item(enemy.getX(), enemy.getY(), Item.ItemType.RUPEE));
+        } else if (roll < 0.40) {
+            items.add(new Item(enemy.getX(), enemy.getY(), Item.ItemType.FIVE_RUPEES));
         }
     }
-    
+
     public void render(Graphics2D g2) {
-        overworldRenderer.renderRoom(g2, roomX, roomY);
-        
+        if (overworldRenderer != null) {
+            overworldRenderer.renderRoom(g2, roomX, roomY);
+        }
+
         for (Item item : items) item.render(g2);
-        for (ZeldaEnemy enemy : enemies) enemy.render(g2);
-        for (Projectile proj : projectiles) proj.render(g2);
+        for (ZeldaEnemy e : enemies) e.render(g2);
+        for (Projectile p : projectiles) p.render(g2);
     }
-    
-    public void addProjectile(Projectile proj) { projectiles.add(proj); }
+
+    public boolean isWalkable(int pixelX, int pixelY) {
+        if (collisionMap == null) return true;
+        return collisionMap.isWalkable(roomX, roomY, pixelX, pixelY);
+    }
+
+    public TileType getTileAt(int pixelX, int pixelY) {
+        if (collisionMap == null) return TileType.FLOOR;
+        int tileX = pixelX / TILE_SIZE;
+        int tileY = pixelY / TILE_SIZE;
+        return collisionMap.getTileType(roomX, roomY, tileX, tileY);
+    }
+
     public int getRoomX() { return roomX; }
     public int getRoomY() { return roomY; }
-    public boolean isCleared() { return cleared; }
     public List<ZeldaEnemy> getEnemies() { return enemies; }
+    public List<Projectile> getProjectiles() { return projectiles; }
+    public List<Item> getItems() { return items; }
+    public boolean isCleared() { return cleared; }
+    public boolean isVisited() { return visited; }
 }
