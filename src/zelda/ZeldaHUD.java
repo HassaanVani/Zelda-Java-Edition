@@ -1,8 +1,8 @@
 package zelda;
 
 import java.awt.*;
-import javax.swing.ImageIcon;
 import java.io.File;
+import javax.swing.ImageIcon;
 
 public class ZeldaHUD {
     private ZeldaPlayer player;
@@ -10,7 +10,9 @@ public class ZeldaHUD {
     private int dungeonLevel = 0;
 
     private Image heartFull, heartHalf, heartEmpty;
-    private Image rupeeIcon, keyIcon, bombIcon, swordIcon, boomerangIcon;
+    private Image rupeeIcon, keyIcon, bombIcon;
+    private Image swordIcon, whiteSwordIcon, magicalSwordIcon;
+    private Image boomerangIcon, bowIcon, candleIcon, recorderIcon, foodIcon, potionIcon, rodIcon;
 
     private static final int HUD_HEIGHT = 56;
 
@@ -61,7 +63,15 @@ public class ZeldaHUD {
         keyIcon = loadGif(p + "Key.gif");
         bombIcon = loadGif(p + "Bomb.gif");
         swordIcon = loadGif(p + "Wooden Sword (Up).gif");
+        whiteSwordIcon = loadGif(p + "White Sword (Up).gif");
+        magicalSwordIcon = loadGif(p + "Magical Sword (Up).gif");
         boomerangIcon = loadGif(p + "Boomerang.gif");
+        bowIcon = loadGif(p + "Bow.gif");
+        candleIcon = loadGif(p + "Blue Candle.gif");
+        recorderIcon = loadGif(p + "Recorder.gif");
+        foodIcon = loadGif(p + "Food.gif");
+        potionIcon = loadGif(p + "Potion (Blue).gif");
+        rodIcon = loadGif(p + "Magical Rod.gif");
     }
 
     private Image loadGif(String path) {
@@ -110,6 +120,7 @@ public class ZeldaHUD {
 
     private void renderInventory(Graphics2D g2) {
         if (player == null) return;
+        Inventory inv = player.getInventory();
 
         g2.setFont(new Font("Monospaced", Font.PLAIN, 7));
 
@@ -121,24 +132,52 @@ public class ZeldaHUD {
         g2.drawRect(ITEM_BOX_X - 10, ITEM_BOX_Y, ITEM_BOX_W, ITEM_BOX_H);
         g2.drawRect(ITEM_BOX_X + ITEM_BOX_GAP - 10, ITEM_BOX_Y, ITEM_BOX_W, ITEM_BOX_H);
 
-        if (player.hasBoomerang() && boomerangIcon != null) {
-            g2.drawImage(boomerangIcon, ITEM_BOX_X - 8, ITEM_BOX_Y + 2, 12, 12, null);
+        // B-item: draw the currently selected B-item
+        Image bItemIcon = getBItemIcon(inv.getSelectedBItem());
+        if (bItemIcon != null) {
+            g2.drawImage(bItemIcon, ITEM_BOX_X - 8, ITEM_BOX_Y + 2, 12, 12, null);
         }
-        if (player.hasSword() && swordIcon != null) {
-            g2.drawImage(swordIcon, ITEM_BOX_X + ITEM_BOX_GAP - 8, ITEM_BOX_Y + 2, 12, 12, null);
+
+        // A-item: draw sword based on level
+        Image currentSword = getSwordIcon(inv.getSwordLevel());
+        if (currentSword != null) {
+            g2.drawImage(currentSword, ITEM_BOX_X + ITEM_BOX_GAP - 8, ITEM_BOX_Y + 2, 12, 12, null);
         }
 
         g2.setFont(new Font("Monospaced", Font.PLAIN, 7));
         g2.setColor(HUD_TEXT);
 
         if (rupeeIcon != null) g2.drawImage(rupeeIcon, RUPEE_X, RUPEE_Y, 8, 8, null);
-        g2.drawString("X" + String.format("%02d", player.getRupees()), RUPEE_X + 10, RUPEE_Y + 8);
+        g2.drawString("X" + String.format("%03d", player.getRupees()), RUPEE_X + 10, RUPEE_Y + 8);
 
         if (keyIcon != null) g2.drawImage(keyIcon, KEY_X, KEY_Y, 6, 10, null);
         g2.drawString("X" + String.format("%02d", player.getKeys()), KEY_X + 10, KEY_Y + 8);
 
         if (bombIcon != null) g2.drawImage(bombIcon, BOMB_X, BOMB_Y, 8, 8, null);
         g2.drawString("X" + String.format("%02d", player.getBombs()), BOMB_X + 10, BOMB_Y + 8);
+    }
+
+    private Image getBItemIcon(Inventory.BItem bItem) {
+        switch (bItem) {
+            case BOOMERANG: return boomerangIcon;
+            case BOMB:      return bombIcon;
+            case BOW:       return bowIcon;
+            case CANDLE:    return candleIcon;
+            case RECORDER:  return recorderIcon;
+            case FOOD:      return foodIcon;
+            case POTION:    return potionIcon;
+            case ROD:       return rodIcon;
+            default:        return null;
+        }
+    }
+
+    private Image getSwordIcon(int level) {
+        switch (level) {
+            case 1:  return swordIcon;
+            case 2:  return whiteSwordIcon != null ? whiteSwordIcon : swordIcon;
+            case 3:  return magicalSwordIcon != null ? magicalSwordIcon : swordIcon;
+            default: return null;
+        }
     }
 
     private void renderLife(Graphics2D g2) {

@@ -2,8 +2,8 @@ package zelda;
 
 import engine.KeyHandler;
 import java.awt.*;
-import javax.swing.ImageIcon;
 import java.io.File;
+import javax.swing.ImageIcon;
 
 public class ZeldaPlayer {
     public static final int WIDTH = 16;
@@ -30,14 +30,15 @@ public class ZeldaPlayer {
     private int attackTimer = 0;
     private boolean attackKeyReleased = true;
 
-    private int health = 6;
-    private int maxHealth = 6;
-    private int rupees = 0;
-    private int keys = 0;
-    private int bombs = 0;
-    private boolean hasSword = false;
-    private boolean hasBoomerang = false;
+    private boolean bItemKeyReleased = true;
+    private int bItemCooldown = 0;
+    private static final int B_ITEM_COOLDOWN_FRAMES = 20;
+    private boolean candleUsedThisScreen = false;
+    private java.util.List<Projectile> roomProjectiles;
+
+    private Inventory inventory;
     private String name = "LINK";
+    private String currentColorVariant = "Normal";
 
     private int invulnerableFrames = 0;
 
@@ -50,11 +51,22 @@ public class ZeldaPlayer {
         this.worldX = x;
         this.worldY = y;
         this.keyHandler = kh;
+        this.inventory = new Inventory();
+        loadSprites();
+    }
+
+    public ZeldaPlayer(double x, double y, KeyHandler kh, Inventory inventory) {
+        this.worldX = x;
+        this.worldY = y;
+        this.keyHandler = kh;
+        this.inventory = inventory;
         loadSprites();
     }
 
     private void loadSprites() {
-        String base = "sprites/Link/Link (Normal) ";
+        currentColorVariant = inventory.getLinkColorVariant();
+        String swordName = getSwordSpriteName();
+        String base = "sprites/Link/Link (" + currentColorVariant + ") ";
 
         walkImages[DIR_UP][0] = loadGif(base + "(Back).gif");
         walkImages[DIR_UP][1] = walkImages[DIR_UP][0];
@@ -65,14 +77,31 @@ public class ZeldaPlayer {
         walkImages[DIR_RIGHT][0] = walkImages[DIR_LEFT][0];
         walkImages[DIR_RIGHT][1] = walkImages[DIR_LEFT][1];
 
-        attackImages[DIR_UP][0] = loadGif(base + "(Back) - Wooden Sword.gif");
-        attackImages[DIR_UP][1] = attackImages[DIR_UP][0];
-        attackImages[DIR_LEFT][0] = loadGif(base + "(Left) - Wooden Sword1.gif");
-        attackImages[DIR_LEFT][1] = loadGif(base + "(Left) - Wooden Sword2.gif");
-        attackImages[DIR_DOWN][0] = loadGif(base + "(Front) - Wooden Sword1.gif");
-        attackImages[DIR_DOWN][1] = loadGif(base + "(Front) - Wooden Sword2.gif");
-        attackImages[DIR_RIGHT][0] = attackImages[DIR_LEFT][0];
-        attackImages[DIR_RIGHT][1] = attackImages[DIR_LEFT][1];
+        if (swordName != null) {
+            attackImages[DIR_UP][0] = loadGif(base + "(Back) - " + swordName + ".gif");
+            attackImages[DIR_UP][1] = attackImages[DIR_UP][0];
+            attackImages[DIR_LEFT][0] = loadGif(base + "(Left) - " + swordName + "1.gif");
+            attackImages[DIR_LEFT][1] = loadGif(base + "(Left) - " + swordName + "2.gif");
+            attackImages[DIR_DOWN][0] = loadGif(base + "(Front) - " + swordName + "1.gif");
+            attackImages[DIR_DOWN][1] = loadGif(base + "(Front) - " + swordName + "2.gif");
+            attackImages[DIR_RIGHT][0] = attackImages[DIR_LEFT][0];
+            attackImages[DIR_RIGHT][1] = attackImages[DIR_LEFT][1];
+        }
+    }
+
+    private String getSwordSpriteName() {
+        switch (inventory.getSwordLevel()) {
+            case 1: return "Wooden Sword";
+            case 2: return "White Sword";
+            case 3: return "Magical Sword";
+            default: return null;
+        }
+    }
+
+    public void reloadSprites() {
+        if (!currentColorVariant.equals(inventory.getLinkColorVariant())) {
+            loadSprites();
+        }
     }
 
     private Image loadGif(String path) {
@@ -92,12 +121,19 @@ public class ZeldaPlayer {
             if (attackTimer == 0) attacking = false;
         }
 
-        if (keyHandler.zPressed && attackKeyReleased && !attacking && hasSword) {
+        if (keyHandler.zPressed && attackKeyReleased && !attacking && inventory.hasSword()) {
             attacking = true;
             attackTimer = ATTACK_DURATION;
             attackKeyReleased = false;
         }
         if (!keyHandler.zPressed) attackKeyReleased = true;
+
+        if (bItemCooldown > 0) bItemCooldown--;
+        if (keyHandler.xPressed && bItemKeyReleased && bItemCooldown == 0) {
+            useBItem();
+            bItemKeyReleased = false;
+        }
+        if (!keyHandler.xPressed) bItemKeyReleased = true;
 
         moving = false;
         if (!attacking) {
@@ -135,7 +171,7 @@ public class ZeldaPlayer {
     public void render(Graphics2D g2) {
         if (invulnerableFrames > 0 && (invulnerableFrames / 3) % 2 == 0) return;
 
-        boolean isAttack = attacking && hasSword;
+        boolean isAttack = attacking && inventory.hasSword();
         Image img = isAttack ? attackImages[direction][animFrame] : walkImages[direction][animFrame];
         boolean flipH = (direction == DIR_RIGHT);
 
@@ -180,7 +216,7 @@ public class ZeldaPlayer {
     }
 
     public Rectangle getSwordHitbox() {
-        if (!attacking || !hasSword) return null;
+        if (!attacking || !inventory.hasSword()) return null;
         int sx = (int)worldX, sy = (int)worldY;
         switch (direction) {
             case DIR_UP:    return new Rectangle(sx + 2, sy - 14, 6, 14);
@@ -193,7 +229,7 @@ public class ZeldaPlayer {
 
     public void takeDamage(int amount, double sourceX, double sourceY) {
         if (invulnerableFrames > 0) return;
-        health -= amount;
+        inventory.takeDamage(amount);
         invulnerableFrames = INVULN_FRAMES;
 
         double dx = worldX - sourceX;
@@ -203,8 +239,6 @@ public class ZeldaPlayer {
             worldX += (dx / dist) * KNOCKBACK_FORCE;
             worldY += (dy / dist) * KNOCKBACK_FORCE;
         }
-
-        if (health <= 0) health = 0;
     }
 
     public void revertPosition() {
@@ -229,28 +263,157 @@ public class ZeldaPlayer {
     public boolean isMoving() { return moving; }
     public boolean isAttacking() { return attacking; }
 
-    public int getHealth() { return health; }
-    public void setHealth(int h) { health = h; }
-    public int getMaxHealth() { return maxHealth; }
-    public void setMaxHealth(int m) { maxHealth = m; }
-    public boolean isAlive() { return health > 0; }
+    public Inventory getInventory() { return inventory; }
+    public void setInventory(Inventory inv) { this.inventory = inv; loadSprites(); }
 
-    public int getRupees() { return rupees; }
-    public void setRupees(int r) { rupees = r; }
-    public void addRupees(int a) { rupees += a; }
-    public int getKeys() { return keys; }
-    public void setKeys(int k) { keys = k; }
-    public void addKeys(int k) { keys += k; }
-    public int getBombs() { return bombs; }
-    public void setBombs(int b) { bombs = b; }
-    public void addBombs(int b) { bombs += b; }
+    public int getHealth() { return inventory.getHealth(); }
+    public void setHealth(int h) { inventory.setHealth(h); }
+    public int getMaxHealth() { return inventory.getMaxHealth(); }
+    public void setMaxHealth(int m) { inventory.setMaxHealth(m); }
+    public boolean isAlive() { return inventory.isAlive(); }
 
-    public boolean hasSword() { return hasSword; }
-    public void setHasSword(boolean s) { hasSword = s; }
-    public boolean hasBoomerang() { return hasBoomerang; }
-    public void setHasBoomerang(boolean b) { hasBoomerang = b; }
+    public int getRupees() { return inventory.getRupees(); }
+    public void setRupees(int r) { inventory.setRupees(r); }
+    public void addRupees(int a) { inventory.addRupees(a); }
+    public int getKeys() { return inventory.getKeys(); }
+    public void setKeys(int k) { inventory.setKeys(k); }
+    public void addKeys(int k) { inventory.addKeys(k); }
+    public int getBombs() { return inventory.getBombs(); }
+    public void setBombs(int b) { inventory.setBombs(b); }
+    public void addBombs(int b) { inventory.addBombs(b); }
+
+    public boolean hasSword() { return inventory.hasSword(); }
+    public void setHasSword(boolean s) {
+        if (s && inventory.getSwordLevel() == 0) inventory.setSwordLevel(1);
+        else if (!s) inventory.setSwordLevel(0);
+        loadSprites();
+    }
+    public boolean hasBoomerang() { return inventory.hasBoomerang(); }
+    public void setHasBoomerang(boolean b) {
+        if (b && inventory.getBoomerangLevel() == 0) inventory.setBoomerangLevel(1);
+        else if (!b) inventory.setBoomerangLevel(0);
+    }
 
     public String getName() { return name; }
     public void setName(String n) { name = n; }
-    public void heal(int amount) { health = Math.min(health + amount, maxHealth); }
+    public void heal(int amount) { inventory.heal(amount); }
+
+    public void setRoomProjectiles(java.util.List<Projectile> projs) { this.roomProjectiles = projs; }
+    public void onScreenChange() { candleUsedThisScreen = false; }
+
+    private void useBItem() {
+        if (roomProjectiles == null) return;
+        Inventory.BItem bItem = inventory.getSelectedBItem();
+        if (bItem == Inventory.BItem.NONE) return;
+
+        double cx = worldX + WIDTH / 2;
+        double cy = worldY + HEIGHT / 2;
+        double speed;
+        double vx = 0, vy = 0;
+
+        switch (bItem) {
+            case BOOMERANG:
+                if (!inventory.hasBoomerang()) return;
+                speed = inventory.hasMagicalBoomerang() ? 4.0 : 3.0;
+                switch (direction) {
+                    case DIR_UP:    vy = -speed; break;
+                    case DIR_DOWN:  vy = speed; break;
+                    case DIR_LEFT:  vx = -speed; break;
+                    case DIR_RIGHT: vx = speed; break;
+                }
+                Projectile boom = new Projectile(cx - 4, cy - 4, vx, vy, true);
+                boom.setColor(inventory.hasMagicalBoomerang() ? Color.CYAN : new Color(180, 120, 60));
+                boom.setSize(8, 8);
+                boom.setDamage(0); // boomerang stuns, doesn't kill
+                roomProjectiles.add(boom);
+                bItemCooldown = B_ITEM_COOLDOWN_FRAMES;
+                break;
+
+            case BOMB:
+                if (!inventory.useBomb()) return;
+                Projectile bomb = new Projectile(cx - 4, cy - 4, 0, 0, true);
+                bomb.setColor(Color.DARK_GRAY);
+                bomb.setSize(12, 12);
+                bomb.setDamage(4);
+                roomProjectiles.add(bomb);
+                bItemCooldown = B_ITEM_COOLDOWN_FRAMES * 2;
+                break;
+
+            case BOW:
+                if (!inventory.canShootArrow()) return;
+                inventory.addRupees(-1);
+                speed = 4.0;
+                switch (direction) {
+                    case DIR_UP:    vy = -speed; break;
+                    case DIR_DOWN:  vy = speed; break;
+                    case DIR_LEFT:  vx = -speed; break;
+                    case DIR_RIGHT: vx = speed; break;
+                }
+                Projectile arrow = new Projectile(cx - 2, cy - 2, vx, vy, true);
+                arrow.setColor(inventory.hasSilverArrows() ? Color.WHITE : new Color(180, 120, 40));
+                arrow.setSize(4, 8);
+                arrow.setDamage(inventory.hasSilverArrows() ? 4 : 2);
+                roomProjectiles.add(arrow);
+                bItemCooldown = B_ITEM_COOLDOWN_FRAMES;
+                break;
+
+            case CANDLE:
+                if (!inventory.hasCandle()) return;
+                if (!inventory.hasRedCandle() && candleUsedThisScreen) return;
+                speed = 2.0;
+                switch (direction) {
+                    case DIR_UP:    vy = -speed; break;
+                    case DIR_DOWN:  vy = speed; break;
+                    case DIR_LEFT:  vx = -speed; break;
+                    case DIR_RIGHT: vx = speed; break;
+                }
+                Projectile fire = new Projectile(cx - 4, cy - 4, vx, vy, true);
+                fire.setColor(Color.ORANGE);
+                fire.setSize(8, 8);
+                fire.setDamage(1);
+                roomProjectiles.add(fire);
+                candleUsedThisScreen = true;
+                bItemCooldown = B_ITEM_COOLDOWN_FRAMES;
+                break;
+
+            case ROD:
+                if (!inventory.hasRod()) return;
+                speed = 3.0;
+                switch (direction) {
+                    case DIR_UP:    vy = -speed; break;
+                    case DIR_DOWN:  vy = speed; break;
+                    case DIR_LEFT:  vx = -speed; break;
+                    case DIR_RIGHT: vx = speed; break;
+                }
+                Projectile rodBeam = new Projectile(cx - 3, cy - 3, vx, vy, true);
+                rodBeam.setColor(new Color(255, 100, 100));
+                rodBeam.setSize(6, 6);
+                rodBeam.setDamage(1);
+                roomProjectiles.add(rodBeam);
+                bItemCooldown = B_ITEM_COOLDOWN_FRAMES;
+                break;
+
+            case RECORDER:
+                if (!inventory.hasRecorder()) return;
+                // Recorder effect handled by ZeldaGame
+                bItemCooldown = B_ITEM_COOLDOWN_FRAMES * 3;
+                break;
+
+            case FOOD:
+                if (!inventory.hasFood()) return;
+                // Food placement handled by ZeldaGame
+                bItemCooldown = B_ITEM_COOLDOWN_FRAMES * 2;
+                break;
+
+            case POTION:
+                if (inventory.getPotionCount() > 0) {
+                    inventory.usePotion();
+                    bItemCooldown = B_ITEM_COOLDOWN_FRAMES * 3;
+                }
+                break;
+
+            default:
+                break;
+        }
+    }
 }

@@ -30,6 +30,7 @@ public class ZeldaRoom {
 
     private OverworldRenderer overworldRenderer;
     private CollisionMap collisionMap;
+    private RoomData.RoomDef roomDef;
 
     public ZeldaRoom(int roomX, int roomY) {
         this.roomX = roomX;
@@ -39,20 +40,25 @@ public class ZeldaRoom {
     public void initialize(OverworldRenderer renderer, CollisionMap collision) {
         this.overworldRenderer = renderer;
         this.collisionMap = collision;
+        this.roomDef = RoomData.getRoomDef(roomX, roomY);
         if (!visited) {
-            if (!isNoSpawnRoom()) spawnEnemies();
+            spawnEnemies();
             visited = true;
         }
     }
 
-    private boolean isNoSpawnRoom() {
-        if (roomX == 7 && roomY == 7) return true;
-        if (roomX == 7 && roomY == 3) return true;
-        if (roomX == 7 && roomY == 6) return true;
-        return false;
-    }
-
     private void spawnEnemies() {
+        // Use RoomData if available
+        if (roomDef != null) {
+            if (roomDef.noEnemies) return;
+            for (RoomData.EnemySpawn es : roomDef.enemies) {
+                ZeldaEnemy enemy = EnemyFactory.create(es.type, es.x, es.y);
+                if (enemy != null) enemies.add(enemy);
+            }
+            return;
+        }
+
+        // Fallback: biome-based random spawning for rooms without data
         int count = MIN_ENEMIES + (int)(Math.random() * (MAX_ENEMIES - MIN_ENEMIES + 1));
         String biome = getBiome(roomX, roomY);
 
@@ -179,4 +185,29 @@ public class ZeldaRoom {
     public List<Item> getItems() { return items; }
     public boolean isCleared() { return cleared; }
     public boolean isVisited() { return visited; }
+    public RoomData.RoomDef getRoomDef() { return roomDef; }
+
+    public boolean hasCaveEntrance() {
+        return roomDef != null && roomDef.caveId >= 0;
+    }
+
+    public int getCaveId() {
+        return roomDef != null ? roomDef.caveId : -1;
+    }
+
+    public int getCaveTileX() {
+        return roomDef != null ? roomDef.caveTileX : -1;
+    }
+
+    public int getCaveTileY() {
+        return roomDef != null ? roomDef.caveTileY : -1;
+    }
+
+    public boolean hasDungeonEntrance() {
+        return roomDef != null && roomDef.dungeonId >= 0;
+    }
+
+    public int getDungeonId() {
+        return roomDef != null ? roomDef.dungeonId : -1;
+    }
 }

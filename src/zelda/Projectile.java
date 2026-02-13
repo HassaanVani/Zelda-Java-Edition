@@ -13,6 +13,8 @@ public class Projectile {
 
     private int lifetime = 120;
     private Color color = Color.WHITE;
+    private int damage = 1;
+    private boolean piercing = false;
 
     public Projectile(double x, double y, double vx, double vy, boolean playerOwned) {
         this.x = x;
@@ -52,4 +54,8 @@ public class Projectile {
 
     public void setColor(Color c) { color = c; }
     public void setSize(int w, int h) { width = w; height = h; }
+    public int getDamage() { return damage; }
+    public void setDamage(int d) { damage = d; }
+    public boolean isPiercing() { return piercing; }
+    public void setPiercing(boolean p) { piercing = p; }
 }

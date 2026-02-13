@@ -10,7 +10,7 @@ public class DungeonRoom {
     public static final int DOOR_SOUTH = 2;
     public static final int DOOR_EAST = 3;
 
-    public enum DoorState { NONE, OPEN, LOCKED, BOSS_LOCKED, BOMBED }
+    public enum DoorState { NONE, OPEN, LOCKED, BOSS_LOCKED, BOMBABLE, BOMBED }
 
     private int localX, localY;
     private int mapCol, mapRow;
@@ -23,6 +23,11 @@ public class DungeonRoom {
     private boolean cleared = false;
     private boolean hasItem = false;
     private Item.ItemType roomItem = null;
+
+    private String[] enemyTypes = new String[0];
+    private String bossType = null;
+    private boolean isDark = false;
+    private boolean hasBlock = false;
 
     private DungeonRenderer renderer;
     private CollisionMap collisionMap;
@@ -46,9 +51,24 @@ public class DungeonRoom {
     }
 
     public boolean tryUnlock(int doorPosition, ZeldaPlayer player) {
-        if (doors[doorPosition] == DoorState.LOCKED && player.getKeys() > 0) {
+        DoorState ds = doors[doorPosition];
+        if (ds == DoorState.LOCKED) {
+            Inventory inv = player.getInventory();
+            if (inv.useKey()) {
+                doors[doorPosition] = DoorState.OPEN;
+                return true;
+            }
+        } else if (ds == DoorState.BOSS_LOCKED) {
+            // Boss key unlocks boss doors (tracked per-dungeon in Inventory)
             doors[doorPosition] = DoorState.OPEN;
-            player.addKeys(-1);
+            return true;
+        }
+        return false;
+    }
+
+    public boolean tryBombWall(int doorPosition) {
+        if (doors[doorPosition] == DoorState.BOMBABLE) {
+            doors[doorPosition] = DoorState.BOMBED;
             return true;
         }
         return false;
@@ -64,34 +84,41 @@ public class DungeonRoom {
         this.collisionMap = c;
     }
 
-    public void enter(String dungeonEnemyType) {
+    public void enter() {
         if (!visited) {
             visited = true;
-            spawnEnemies(dungeonEnemyType);
+            spawnEnemies();
+            if (bossType != null) {
+                spawnBoss();
+            }
             if (hasItem && roomItem != null) {
                 items.add(new Item(ZeldaRoom.ROOM_PIXEL_W / 2, ZeldaRoom.ROOM_PIXEL_H / 2, roomItem));
             }
         }
     }
 
-    private void spawnEnemies(String type) {
-        int count = 2 + (int)(Math.random() * 3);
-        for (int i = 0; i < count; i++) {
+    private void spawnEnemies() {
+        if (enemyTypes == null || enemyTypes.length == 0) return;
+        for (int i = 0; i < enemyTypes.length; i++) {
             double x = 48 + Math.random() * 160;
             double y = 48 + Math.random() * 80;
-            ZeldaEnemy enemy = createDungeonEnemy(type, x, y);
+            ZeldaEnemy enemy = EnemyFactory.create(enemyTypes[i], x, y);
             if (enemy != null) enemies.add(enemy);
         }
     }
 
-    private ZeldaEnemy createDungeonEnemy(String type, double x, double y) {
-        switch (type) {
-            case "stalfos": return new zelda.enemies.Stalfos(x, y);
-            case "keese": return new zelda.enemies.Keese(x, y, Math.random() < 0.5);
-            default:
-                return Math.random() < 0.5
-                    ? new zelda.enemies.Stalfos(x, y)
-                    : new zelda.enemies.Keese(x, y, true);
+    private void spawnBoss() {
+        double bx = ZeldaRoom.ROOM_PIXEL_W / 2.0;
+        double by = ZeldaRoom.ROOM_PIXEL_H / 2.0 - 16;
+        switch (bossType) {
+            case "Aquamentus":  enemies.add(new zelda.bosses.Aquamentus(bx, by)); break;
+            case "Dodongo":     enemies.add(new zelda.bosses.Dodongo(bx, by)); break;
+            case "Manhandla":   enemies.add(new zelda.bosses.Manhandla(bx, by)); break;
+            case "Gleeok":      enemies.add(new zelda.bosses.Gleeok(bx, by)); break;
+            case "Digdogger":   enemies.add(new zelda.bosses.Digdogger(bx, by)); break;
+            case "Gohma":       enemies.add(new zelda.bosses.Gohma(bx, by)); break;
+            case "Ganon":       enemies.add(new zelda.bosses.Ganon(bx, by)); break;
+            default:            enemies.add(new zelda.bosses.Aquamentus(bx, by)); break;
         }
     }
 
@@ -131,8 +158,14 @@ public class DungeonRoom {
     }
 
     private void onRoomCleared() {
+        // Open shut doors on room clear
         for (int i = 0; i < 4; i++) {
             if (doors[i] == DoorState.LOCKED) doors[i] = DoorState.OPEN;
+        }
+        // Boss room: drop heart container
+        if (bossType != null) {
+            items.add(new Item(ZeldaRoom.ROOM_PIXEL_W / 2.0, ZeldaRoom.ROOM_PIXEL_H / 2.0,
+                Item.ItemType.HEART_CONTAINER));
         }
     }
 
@@ -172,6 +205,9 @@ public class DungeonRoom {
                 g2.setColor(Color.RED);
                 g2.fillRect(x + w/2 - 4, y + h/2 - 4, 8, 8);
                 break;
+            case BOMBABLE:
+                // Appears as a normal wall — no visual hint
+                break;
             case NONE:
                 break;
             default:
@@ -185,6 +221,13 @@ public class DungeonRoom {
     public int getMapRow() { return mapRow; }
     public boolean isCleared() { return cleared; }
     public boolean isVisited() { return visited; }
+    public boolean isDark() { return isDark; }
+    public boolean hasBlock() { return hasBlock; }
     public List<ZeldaEnemy> getEnemies() { return enemies; }
     public List<Projectile> getProjectiles() { return projectiles; }
+
+    public void setEnemyTypes(String[] types) { this.enemyTypes = types; }
+    public void setBossType(String type) { this.bossType = type; }
+    public void setDark(boolean dark) { this.isDark = dark; }
+    public void setHasBlock(boolean block) { this.hasBlock = block; }
 }

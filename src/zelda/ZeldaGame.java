@@ -55,6 +55,7 @@ public class ZeldaGame {
     private SaveManager saveManager;
     private CombatManager combatManager;
     private Cave cave;
+    private InventoryScreen inventoryScreen;
 
     private ZeldaDungeon currentDungeon;
     private DungeonRenderer dungeonRenderer;
@@ -75,6 +76,7 @@ public class ZeldaGame {
         combatManager = new CombatManager();
         hud = new ZeldaHUD();
         cave = new Cave();
+        inventoryScreen = new InventoryScreen();
         titleScreen = new TitleScreen(this, keyHandler);
         dungeonRenderer = new DungeonRenderer();
 
@@ -114,6 +116,7 @@ public class ZeldaGame {
         }
 
         ZeldaRoom room = overworld.getCurrentRoom();
+        player.setRoomProjectiles(room.getProjectiles());
         room.update(player);
 
         checkRoomTransition();
@@ -172,38 +175,45 @@ public class ZeldaGame {
                 case 3: player.setPosition(ZeldaRoom.ROOM_PLAY_RIGHT - ZeldaPlayer.WIDTH - 8, player.getWorldY()); break;
             }
             overworld.setCurrentRoom(nx, ny);
+            player.onScreenChange();
         } else {
             player.revertPosition();
         }
     }
 
     private void checkCaveEntrance() {
-        int roomX = overworld.getCurrentRoomX();
-        int roomY = overworld.getCurrentRoomY();
+        ZeldaRoom room = overworld.getCurrentRoom();
+        if (room == null || !room.hasCaveEntrance()) return;
 
-        if (roomX == CAVE_ENTRANCE_ROOM_X && roomY == CAVE_ENTRANCE_ROOM_Y) {
-            int tileX = (int)(player.getWorldX() + ZeldaPlayer.WIDTH / 2) / ZeldaRoom.TILE_SIZE;
-            int tileY = (int)(player.getWorldY() + ZeldaPlayer.HEIGHT / 2) / ZeldaRoom.TILE_SIZE;
+        int tileX = (int)(player.getWorldX() + ZeldaPlayer.WIDTH / 2) / ZeldaRoom.TILE_SIZE;
+        int tileY = (int)(player.getWorldY() + ZeldaPlayer.HEIGHT / 2) / ZeldaRoom.TILE_SIZE;
 
-            if (tileX == CAVE_ENTRANCE_TILE_X && tileY == CAVE_ENTRANCE_TILE_Y && keyHandler.upPressed) {
-                audioManager.playSFX(SFX_STAIRS);
-                cave.enter(player);
-                state = GameState.CAVE;
-            }
+        if (tileX == room.getCaveTileX() && tileY == room.getCaveTileY() && keyHandler.upPressed) {
+            audioManager.playSFX(SFX_STAIRS);
+            cave.enter(player, overworld.getCurrentRoomX(), overworld.getCurrentRoomY());
+            state = GameState.CAVE;
         }
     }
 
     private void checkDungeonEntrance() {
-        int roomX = overworld.getCurrentRoomX();
-        int roomY = overworld.getCurrentRoomY();
+        ZeldaRoom room = overworld.getCurrentRoom();
+        if (room == null || !room.hasDungeonEntrance()) return;
 
-        if (roomX == DUNGEON1_ENTRANCE_ROOM_X && roomY == DUNGEON1_ENTRANCE_ROOM_Y) {
-            int tileX = (int)(player.getWorldX() + ZeldaPlayer.WIDTH / 2) / ZeldaRoom.TILE_SIZE;
-            int tileY = (int)(player.getWorldY() + ZeldaPlayer.HEIGHT / 2) / ZeldaRoom.TILE_SIZE;
+        int tileX = (int)(player.getWorldX() + ZeldaPlayer.WIDTH / 2) / ZeldaRoom.TILE_SIZE;
+        int tileY = (int)(player.getWorldY() + ZeldaPlayer.HEIGHT / 2) / ZeldaRoom.TILE_SIZE;
 
-            if (tileX == DUNGEON1_ENTRANCE_TILE_X && tileY == DUNGEON1_ENTRANCE_TILE_Y && keyHandler.upPressed) {
-                enterDungeon(1);
-            }
+        // Default entrance tile is (7,3) for all dungeons
+        int entranceTileX = 7;
+        int entranceTileY = 3;
+        int[][] entranceTiles = RoomData.getDungeonEntranceTiles();
+        int dIdx = room.getDungeonId() - 1;
+        if (dIdx >= 0 && dIdx < entranceTiles.length) {
+            entranceTileX = entranceTiles[dIdx][0];
+            entranceTileY = entranceTiles[dIdx][1];
+        }
+
+        if (tileX == entranceTileX && tileY == entranceTileY && keyHandler.upPressed) {
+            enterDungeon(room.getDungeonId());
         }
     }
 
@@ -295,8 +305,8 @@ public class ZeldaGame {
 
         if (dir < 0) return;
 
-        if (dir == DungeonRoom.DOOR_SOUTH && currentDungeon.getCurrentRoomX() == ZeldaDungeon.ENTRANCE_ROOM_X
-            && currentDungeon.getCurrentRoomY() == ZeldaDungeon.ENTRANCE_ROOM_Y) {
+        if (dir == DungeonRoom.DOOR_SOUTH && currentDungeon.getCurrentRoomX() == currentDungeon.getEntranceRoomX()
+            && currentDungeon.getCurrentRoomY() == currentDungeon.getEntranceRoomY()) {
             exitDungeon();
             return;
         }
@@ -337,7 +347,10 @@ public class ZeldaGame {
     }
 
     private void updatePaused() {
-        if (keyHandler.escapePressed) {
+        if (player != null) {
+            inventoryScreen.update(keyHandler, player.getInventory());
+        }
+        if (keyHandler.escapePressed || keyHandler.startPressed) {
             state = (currentDungeon != null) ? GameState.DUNGEON : GameState.PLAYING;
         }
     }
@@ -408,17 +421,10 @@ public class ZeldaGame {
     }
 
     private void renderPaused(Graphics2D g2) {
-        if (currentDungeon != null) renderDungeon(g2);
-        else renderPlaying(g2);
-
-        g2.setColor(new Color(0, 0, 0, 150));
-        g2.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-
-        g2.setColor(Color.WHITE);
-        g2.setFont(new Font("Monospaced", Font.BOLD, 12));
-        g2.drawString("PAUSED", 100, 120);
-        g2.setFont(new Font("Monospaced", Font.PLAIN, 8));
-        g2.drawString("PRESS ESC TO RESUME", 68, 140);
+        int dungeonLvl = (currentDungeon != null) ? currentDungeon.getDungeonNumber() : 0;
+        if (player != null) {
+            inventoryScreen.render(g2, player.getInventory(), dungeonLvl);
+        }
     }
 
     private void renderGameOver(Graphics2D g2) {
@@ -436,7 +442,8 @@ public class ZeldaGame {
         this.playerName = name;
         this.currentSaveSlot = saveSlot;
 
-        player = new ZeldaPlayer(PLAYER_START_X, PLAYER_START_Y, keyHandler);
+        Inventory inventory = Inventory.createNew();
+        player = new ZeldaPlayer(PLAYER_START_X, PLAYER_START_Y, keyHandler, inventory);
         player.setName(name);
 
         overworld = new Overworld();
@@ -459,13 +466,9 @@ public class ZeldaGame {
             this.currentSaveSlot = saveSlot;
             this.playerName = data.playerName;
 
-            player = new ZeldaPlayer(data.playerX, data.playerY, keyHandler);
+            Inventory inventory = (data.inventory != null) ? data.inventory : Inventory.createNew();
+            player = new ZeldaPlayer(data.playerX, data.playerY, keyHandler, inventory);
             player.setName(data.playerName);
-            player.setHealth(data.health);
-            player.setMaxHealth(data.maxHealth);
-            player.setRupees(data.rupees);
-            player.setKeys(data.keys);
-            player.setBombs(data.bombs);
 
             overworld = new Overworld();
             overworld.initialize();

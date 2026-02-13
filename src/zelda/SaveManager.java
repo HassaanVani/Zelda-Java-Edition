@@ -19,8 +19,11 @@ public class SaveManager {
         public int roomY;
         public boolean hasSword;
         public long playTime;
+        public Inventory inventory;
         
-        public SaveData() {}
+        public SaveData() {
+            inventory = new Inventory();
+        }
     }
     
     public SaveManager() {
@@ -44,6 +47,7 @@ public class SaveManager {
         data.roomY = 7;
         data.hasSword = false;
         data.playTime = 0;
+        data.inventory = Inventory.createNew();
         
         writeSaveFile(slot, data);
     }
@@ -61,6 +65,7 @@ public class SaveManager {
         data.roomX = roomX;
         data.roomY = roomY;
         data.hasSword = player.hasSword();
+        data.inventory = player.getInventory();
         
         writeSaveFile(slot, data);
     }
@@ -79,6 +84,10 @@ public class SaveManager {
         props.setProperty("roomY", String.valueOf(data.roomY));
         props.setProperty("hasSword", String.valueOf(data.hasSword));
         props.setProperty("playTime", String.valueOf(data.playTime));
+        
+        if (data.inventory != null) {
+            data.inventory.saveToProperties(props);
+        }
         
         try (FileOutputStream fos = new FileOutputStream(SAVE_DIR + "save" + slot + ".dat")) {
             props.store(fos, "Zelda Save File");
@@ -110,6 +119,9 @@ public class SaveManager {
             data.roomY = Integer.parseInt(props.getProperty("roomY", "7"));
             data.hasSword = Boolean.parseBoolean(props.getProperty("hasSword", "false"));
             data.playTime = Long.parseLong(props.getProperty("playTime", "0"));
+            
+            data.inventory = new Inventory();
+            data.inventory.loadFromProperties(props);
             
             return data;
         } catch (IOException | NumberFormatException e) {
