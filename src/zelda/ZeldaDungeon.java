@@ -22,6 +22,8 @@ public class ZeldaDungeon {
 
     private int mapWidth = 0;
     private int mapHeight = 0;
+    private int triforceRoomX = -1;
+    private int triforceRoomY = -1;
 
     private DungeonRenderer renderer;
     private CollisionMap collisionMap;
@@ -53,7 +55,7 @@ public class ZeldaDungeon {
             DungeonRoom.DoorState[] doorStates = {
                 DungeonRoom.DoorState.NONE, DungeonRoom.DoorState.OPEN,
                 DungeonRoom.DoorState.LOCKED, DungeonRoom.DoorState.BOSS_LOCKED,
-                DungeonRoom.DoorState.BOMBED
+                DungeonRoom.DoorState.BOMBABLE, DungeonRoom.DoorState.BOMBED
             };
             for (int d = 0; d < 4; d++) {
                 int doorVal = rd.doors[d];
@@ -70,11 +72,17 @@ public class ZeldaDungeon {
                 }
             }
 
-            // Set enemy types and boss
+            // Set enemy types, boss, and dungeon number
             room.setEnemyTypes(rd.enemies);
             room.setBossType(rd.bossType);
             room.setDark(rd.isDark);
             room.setHasBlock(rd.hasBlock);
+            room.setDungeonNumber(dungeonNumber);
+
+            if ("TRIFORCE".equals(rd.itemType)) {
+                triforceRoomX = rd.localX;
+                triforceRoomY = rd.localY;
+            }
 
             String key = rd.localX + "," + rd.localY;
             rooms.put(key, room);
@@ -90,18 +98,20 @@ public class ZeldaDungeon {
             case "MAP": return Item.ItemType.MAP;
             case "COMPASS": return Item.ItemType.COMPASS;
             case "TRIFORCE": return Item.ItemType.TRIFORCE;
+            case "BOSS_KEY": return Item.ItemType.BOSS_KEY;
             case "BOMB": return Item.ItemType.BOMB;
             case "HEART_CONTAINER": return Item.ItemType.HEART_CONTAINER;
-            case "BOW": return Item.ItemType.BOOMERANG; // placeholder until item types expand
+            case "BOW": return Item.ItemType.BOW;
             case "BOOMERANG": return Item.ItemType.BOOMERANG;
-            case "MAGICAL_BOOMERANG": return Item.ItemType.BOOMERANG;
-            case "RAFT": return Item.ItemType.BOOMERANG;
-            case "STEPLADDER": return Item.ItemType.BOOMERANG;
-            case "RECORDER": return Item.ItemType.BOOMERANG;
-            case "MAGICAL_ROD": return Item.ItemType.BOOMERANG;
-            case "RED_CANDLE": return Item.ItemType.BOOMERANG;
-            case "MAGICAL_KEY": return Item.ItemType.KEY;
-            case "SILVER_ARROW": return Item.ItemType.BOOMERANG;
+            case "MAGICAL_BOOMERANG": return Item.ItemType.MAGICAL_BOOMERANG;
+            case "RAFT": return Item.ItemType.RAFT;
+            case "STEPLADDER": return Item.ItemType.STEPLADDER;
+            case "RECORDER": return Item.ItemType.RECORDER;
+            case "MAGICAL_ROD": return Item.ItemType.MAGICAL_ROD;
+            case "RED_CANDLE": return Item.ItemType.RED_CANDLE;
+            case "MAGICAL_KEY": return Item.ItemType.MAGICAL_KEY;
+            case "SILVER_ARROW": return Item.ItemType.SILVER_ARROW;
+            case "ZELDA": return Item.ItemType.ZELDA;
             default: return null;
         }
     }
@@ -139,6 +149,7 @@ public class ZeldaDungeon {
 
         if (hasRoom(nx, ny)) {
             setCurrentRoom(nx, ny);
+            player.onScreenChange();
 
             switch (doorDirection) {
                 case DungeonRoom.DOOR_NORTH: player.setPosition(player.getWorldX(), ZeldaRoom.ROOM_PIXEL_H - 32); break;
@@ -161,8 +172,16 @@ public class ZeldaDungeon {
     public int getMapWidth() { return mapWidth; }
     public int getMapHeight() { return mapHeight; }
 
+    public void setItemDropSystem(ItemDropSystem ids) {
+        for (DungeonRoom room : rooms.values()) {
+            room.setItemDropSystem(ids);
+        }
+    }
+
     public boolean isBossDefeated() { return bossDefeated; }
     public boolean isTriforceCollected() { return triforceCollected; }
     public void setBossDefeated(boolean defeated) { bossDefeated = defeated; }
     public void setTriforceCollected(boolean collected) { triforceCollected = collected; }
+    public int getTriforceRoomX() { return triforceRoomX; }
+    public int getTriforceRoomY() { return triforceRoomY; }
 }

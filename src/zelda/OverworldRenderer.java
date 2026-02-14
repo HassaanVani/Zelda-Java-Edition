@@ -2,8 +2,8 @@ package zelda;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import javax.imageio.ImageIO;
 import java.io.File;
+import javax.imageio.ImageIO;
 
 public class OverworldRenderer {
     public static final int MAP_COLS = 16;
@@ -190,6 +190,109 @@ public class OverworldRenderer {
         }
 
         return bestType;
+    }
+
+    /**
+     * Scan a room's sprite image for the darkest interior tile that looks like
+     * a cave or dungeon entrance (black opening). Returns [tileX, tileY] of
+     * the bottom-most row of the dark opening, or null if none found.
+     */
+    public int[] findDarkOpening(int roomX, int roomY) {
+        BufferedImage roomImg = getRoomImage(roomX, roomY);
+        if (roomImg == null) return null;
+
+        int tilesX = ZeldaRoom.TILES_X;
+        int tilesY = ZeldaRoom.TILES_Y;
+        int tileW = sourceRoomWidth / tilesX;
+        int tileH = sourceRoomHeight / tilesY;
+
+        // Calculate average brightness for each tile (multi-sample)
+        float[][] brightness = new float[tilesX][tilesY];
+        for (int ty = 0; ty < tilesY; ty++) {
+            for (int tx = 0; tx < tilesX; tx++) {
+                float totalBri = 0;
+                int samples = 0;
+                int[][] pts = {
+                    {tileW / 2, tileH / 2},
+                    {tileW / 4, tileH / 4},
+                    {3 * tileW / 4, tileH / 4},
+                    {tileW / 4, 3 * tileH / 4},
+                    {3 * tileW / 4, 3 * tileH / 4}
+                };
+                for (int[] pt : pts) {
+                    int px = Math.min(tx * tileW + pt[0], roomImg.getWidth() - 1);
+                    int py = Math.min(ty * tileH + pt[1], roomImg.getHeight() - 1);
+                    int rgb = roomImg.getRGB(px, py) & 0xFFFFFF;
+                    int r = (rgb >> 16) & 0xFF;
+                    int g = (rgb >> 8) & 0xFF;
+                    int b = rgb & 0xFF;
+                    totalBri += (r + g + b) / (3.0f * 255.0f);
+                    samples++;
+                }
+                brightness[tx][ty] = totalBri / samples;
+            }
+        }
+
+        // Compute room's average brightness to set a relative threshold
+        float totalRoomBri = 0;
+        int totalCount = 0;
+        for (int ty = 1; ty < tilesY - 1; ty++) {
+            for (int tx = 1; tx < tilesX - 1; tx++) {
+                totalRoomBri += brightness[tx][ty];
+                totalCount++;
+            }
+        }
+        float avgBri = totalCount > 0 ? totalRoomBri / totalCount : 0.5f;
+        // Dark threshold: tile must be significantly darker than room average
+        float darkThresh = Math.min(avgBri * 0.4f, 0.20f);
+
+        // Find candidate entrance tiles: dark interior tiles with a walkable
+        // approach path (brighter tile within 1-3 rows below).
+        float bestScore = Float.MAX_VALUE;
+        int bestTX = -1, bestTY = -1;
+
+        for (int ty = 1; ty < tilesY - 2; ty++) {
+            for (int tx = 2; tx < tilesX - 2; tx++) {
+                if (brightness[tx][ty] >= darkThresh) continue;
+
+                // Must have a significantly brighter tile within 3 rows below
+                boolean approachable = false;
+                for (int dy = 1; dy <= 3 && ty + dy < tilesY; dy++) {
+                    if (brightness[tx][ty + dy] >= avgBri * 0.6f) {
+                        approachable = true;
+                        break;
+                    }
+                }
+                if (!approachable) continue;
+
+                // Must NOT be part of a continuous dark border strip
+                // (cave openings have at least one brighter neighbor left or right)
+                boolean hasLightNeighbor = false;
+                if (tx > 0 && brightness[tx - 1][ty] >= darkThresh * 2) hasLightNeighbor = true;
+                if (tx < tilesX - 1 && brightness[tx + 1][ty] >= darkThresh * 2) hasLightNeighbor = true;
+                if (ty > 0 && brightness[tx][ty - 1] >= darkThresh * 2) hasLightNeighbor = true;
+                if (!hasLightNeighbor) continue;
+
+                // Score: strongly prefer center column; slightly prefer upper rows
+                float centerDist = Math.abs(tx - tilesX / 2.0f);
+                float score = brightness[tx][ty] * 50 + centerDist * 3 + ty * 0.3f;
+
+                if (score < bestScore) {
+                    bestScore = score;
+                    bestTX = tx;
+                    bestTY = ty;
+                }
+            }
+        }
+
+        if (bestTX >= 0) {
+            // If the tile directly below is similarly dark, use the lower one
+            if (bestTY + 1 < tilesY && brightness[bestTX][bestTY + 1] < darkThresh) {
+                bestTY = bestTY + 1;
+            }
+            return new int[]{bestTX, bestTY};
+        }
+        return null;
     }
 
     public boolean isMapLoaded() { return mapLoaded; }

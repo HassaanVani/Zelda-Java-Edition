@@ -1,8 +1,8 @@
 package zelda.enemies;
 
-import zelda.*;
 import java.awt.*;
 import java.util.List;
+import zelda.*;
 
 /**
  * Vire: bat-demon that splits into two Keese when killed. Bounces around room.
@@ -10,10 +10,15 @@ import java.util.List;
  */
 public class Vire extends ZeldaEnemy {
     private double vx, vy;
+    private List<ZeldaEnemy> roomEnemies;
+
+    public void setRoomEnemies(List<ZeldaEnemy> enemies) {
+        this.roomEnemies = enemies;
+    }
 
     public Vire(double x, double y) {
-        super(x, y, 4, 1, AIType.RANDOM);
-        this.speed = 1.0;
+        super(x, y, 2, 1, AIType.RANDOM);
+        applyStats(EnemyStats.vire());
         vx = (Math.random() < 0.5 ? -1 : 1) * speed;
         vy = (Math.random() < 0.5 ? -1 : 1) * speed;
         sprite = loadSprite("sprites/Enemies/Vire.png");
@@ -38,6 +43,7 @@ public class Vire extends ZeldaEnemy {
         }
 
         // Slightly adjust towards player
+        if (player == null) return;
         double dx = player.getWorldX() - x;
         double dy = player.getWorldY() - y;
         double dist = Math.sqrt(dx * dx + dy * dy);
@@ -49,6 +55,24 @@ public class Vire extends ZeldaEnemy {
                 vx = (vx / mag) * speed * 1.5;
                 vy = (vy / mag) * speed * 1.5;
             }
+        }
+    }
+
+    @Override
+    public void damage(int amount) {
+        health -= amount;
+        damageTimer = 10;
+        invulnerableFrames = 15;
+        if (health <= 0) {
+            active = false;
+            spawnKeese();
+        }
+    }
+
+    private void spawnKeese() {
+        if (roomEnemies != null) {
+            roomEnemies.add(new Keese(x - 8, y, false));
+            roomEnemies.add(new Keese(x + 8, y, false));
         }
     }
 

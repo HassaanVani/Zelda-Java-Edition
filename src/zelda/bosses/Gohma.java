@@ -1,8 +1,8 @@
 package zelda.bosses;
 
-import zelda.*;
 import java.awt.*;
 import java.util.List;
+import zelda.*;
 
 /**
  * Gohma: giant spider/crab boss. Only vulnerable when its eye is open.
@@ -70,8 +70,24 @@ public class Gohma extends ZeldaEnemy {
 
     @Override
     public void damage(int amount) {
-        if (!eyeOpen) return; // Only vulnerable when eye is open
-        super.damage(amount);
+        // Gohma is only damaged by arrows when eye is open.
+        // Regular damage calls (sword, boomerang, etc.) are rejected.
+        // Arrow damage is applied via damageByArrow() called from CombatManager.
+    }
+
+    /**
+     * Called specifically when an arrow hits Gohma. Only works when eye is open.
+     * On NES, arrow to open eye is instant kill.
+     */
+    public void damageByArrow(int amount) {
+        if (!eyeOpen) return;
+        health -= amount;
+        damageTimer = DAMAGE_FLASH_FRAMES;
+        invulnerableFrames = DEFAULT_INVULN;
+        if (health <= 0) {
+            health = 0;
+            active = false;
+        }
     }
 
     public boolean isEyeOpen() { return eyeOpen; }

@@ -1,7 +1,7 @@
 package zelda.enemies;
 
-import zelda.*;
 import java.util.List;
+import zelda.*;
 
 public class Tektite extends ZeldaEnemy {
     private static final int JUMP_COOLDOWN_MIN = 40;
@@ -20,6 +20,7 @@ public class Tektite extends ZeldaEnemy {
     public Tektite(double x, double y, boolean isBlue) {
         super(x, y, 1, 1, AIType.JUMPER);
         this.isBlue = isBlue;
+        applyStats(isBlue ? EnemyStats.tektiteBlue() : EnemyStats.tektiteRed());
         loadTektiteSprite();
     }
 

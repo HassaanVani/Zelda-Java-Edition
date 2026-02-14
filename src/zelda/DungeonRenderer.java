@@ -2,12 +2,12 @@ package zelda;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import javax.imageio.ImageIO;
 import java.io.File;
+import javax.imageio.ImageIO;
 
 public class DungeonRenderer {
     private static final int DUNGEON_MAP_COLS = 16;
-    private static final int DUNGEON_MAP_ROWS = 11;
+    private static final int DUNGEON_MAP_ROWS = 16;
 
     public static final int DISPLAY_WIDTH = 256;
     public static final int DISPLAY_HEIGHT = 176;
@@ -19,9 +19,7 @@ public class DungeonRenderer {
     private int sourceRoomHeight;
     private boolean mapLoaded = false;
 
-    private static final Color DUNGEON_FLOOR = new Color(52, 28, 0);
-    private static final Color DUNGEON_WALL = new Color(188, 140, 76);
-    private static final Color DUNGEON_DOOR = new Color(100, 60, 0);
+    private int currentDungeonLevel = 1;
 
     public DungeonRenderer() {
         loadDungeonMap();
@@ -55,27 +53,38 @@ public class DungeonRenderer {
         return null;
     }
 
+    public void setDungeonLevel(int level) { this.currentDungeonLevel = level; }
+    public int getDungeonLevel() { return currentDungeonLevel; }
+
     public void renderRoom(Graphics2D g2, int mapCol, int mapRow) {
         BufferedImage roomImg = getRoomImage(mapCol, mapRow);
         if (roomImg != null) {
             g2.drawImage(roomImg, 0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, null);
+            // Apply dungeon color tint overlay
+            Color tint = NESPalette.getDungeonWallColor(currentDungeonLevel);
+            g2.setColor(new Color(tint.getRed(), tint.getGreen(), tint.getBlue(), 40));
+            g2.fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
         } else {
             renderFallbackRoom(g2);
         }
     }
 
     private void renderFallbackRoom(Graphics2D g2) {
-        g2.setColor(DUNGEON_FLOOR);
+        Color floorColor = NESPalette.getDungeonFloorColor(currentDungeonLevel);
+        Color wallColor = NESPalette.getDungeonWallColor(currentDungeonLevel);
+        Color doorColor = NESPalette.getDungeonDoorColor(currentDungeonLevel);
+
+        g2.setColor(floorColor);
         g2.fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
-        g2.setColor(DUNGEON_WALL);
+        g2.setColor(wallColor);
         g2.fillRect(0, 0, DISPLAY_WIDTH, ROOM_BORDER_PIXELS);
         g2.fillRect(0, DISPLAY_HEIGHT - ROOM_BORDER_PIXELS, DISPLAY_WIDTH, ROOM_BORDER_PIXELS);
         g2.fillRect(0, 0, ROOM_BORDER_PIXELS, DISPLAY_HEIGHT);
         g2.fillRect(DISPLAY_WIDTH - ROOM_BORDER_PIXELS, 0, ROOM_BORDER_PIXELS, DISPLAY_HEIGHT);
 
         int doorW = 32, doorH = 32;
-        g2.setColor(DUNGEON_FLOOR);
+        g2.setColor(doorColor);
         g2.fillRect(DISPLAY_WIDTH / 2 - doorW / 2, 0, doorW, doorH);
         g2.fillRect(DISPLAY_WIDTH / 2 - doorW / 2, DISPLAY_HEIGHT - doorH, doorW, doorH);
         g2.fillRect(0, DISPLAY_HEIGHT / 2 - doorH / 2, doorW, doorH);

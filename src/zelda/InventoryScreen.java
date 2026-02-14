@@ -13,9 +13,13 @@ public class InventoryScreen {
     private static final int SCREEN_H = 240;
     private static final Color BG_COLOR = Color.BLACK;
     private static final Color BOX_COLOR = new Color(60, 60, 120);
+    private static final Color BOX_BORDER = new Color(100, 100, 160);
     private static final Color SELECTED_COLOR = new Color(200, 80, 80);
     private static final Color TEXT_COLOR = Color.WHITE;
     private static final Color LABEL_COLOR = new Color(200, 60, 60);
+    private static final Color TRIFORCE_GOLD = new Color(240, 220, 60);
+    private static final Color TRIFORCE_EMPTY = new Color(40, 40, 40);
+    private static final Color TRIFORCE_GLOW = new Color(255, 250, 180);
 
     // B-item grid layout
     private static final int GRID_X = 128;
@@ -174,23 +178,54 @@ public class InventoryScreen {
             if (inv.hasMap(dungeonLevel))     g2.drawString("MAP", MAP_X + 48, MAP_Y + MAP_H + 10);
         }
 
-        // === Triforce pieces ===
+        // === Triforce pieces (NES pyramid layout) ===
         g2.setColor(LABEL_COLOR);
         g2.setFont(new Font("Monospaced", Font.BOLD, 8));
         g2.drawString("TRIFORCE", TRI_X + 4, TRI_Y - 4);
 
-        for (int i = 0; i < 8; i++) {
-            int tx = TRI_X + (i % 4) * 16;
-            int ty = TRI_Y + (i / 4) * 14;
-            if (inv.hasTriforce(i + 1)) {
-                g2.setColor(new Color(240, 220, 60));
-            } else {
-                g2.setColor(new Color(40, 40, 40));
+        // Draw outer triforce frame
+        int triCX = TRI_X + 40;
+        int triTopY = TRI_Y + 2;
+        int triH = 56;
+        int triW = 72;
+        int[] frameX = {triCX, triCX - triW/2, triCX + triW/2};
+        int[] frameY = {triTopY, triTopY + triH, triTopY + triH};
+        g2.setColor(new Color(30, 30, 60));
+        g2.fillPolygon(frameX, frameY, 3);
+        g2.setColor(BOX_BORDER);
+        g2.drawPolygon(frameX, frameY, 3);
+
+        // Place 8 triforce pieces in pyramid arrangement:
+        // Row 0 (top): piece 1
+        // Row 1: pieces 2, 3
+        // Row 2: pieces 4, 5, 6
+        // Row 3 (bottom): pieces 7, 8
+        int[][] triLayout = {
+            {0, 1},    // row 0: 1 piece centered
+            {-1, 1},   // row 1: 2 pieces
+            {-2, 0, 2},// row 2: 3 pieces
+            {-1, 1}    // row 3: 2 pieces
+        };
+        int pieceNum = 1;
+        int pieceSize = 10;
+        for (int row = 0; row < triLayout.length && pieceNum <= 8; row++) {
+            for (int col = 0; col < triLayout[row].length && pieceNum <= 8; col++) {
+                int px = triCX + triLayout[row][col] * (pieceSize + 2) - pieceSize/2;
+                int py = triTopY + 6 + row * (pieceSize + 2);
+
+                boolean hasIt = inv.hasTriforce(pieceNum);
+                // Glowing effect for collected pieces
+                if (hasIt) {
+                    boolean glow = (blinkTimer / 12) % 3 == 0;
+                    g2.setColor(glow ? TRIFORCE_GLOW : TRIFORCE_GOLD);
+                } else {
+                    g2.setColor(TRIFORCE_EMPTY);
+                }
+                int[] txp = {px + pieceSize/2, px, px + pieceSize};
+                int[] typ = {py, py + pieceSize, py + pieceSize};
+                g2.fillPolygon(txp, typ, 3);
+                pieceNum++;
             }
-            // Draw small triangle for triforce piece
-            int[] xp = {tx + 7, tx + 1, tx + 13};
-            int[] yp = {ty, ty + 10, ty + 10};
-            g2.fillPolygon(xp, yp, 3);
         }
     }
 

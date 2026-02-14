@@ -1,8 +1,8 @@
 package zelda.enemies;
 
-import zelda.*;
 import java.awt.*;
 import java.util.List;
+import zelda.*;
 
 public class Peahat extends ZeldaEnemy {
     private static final double FLOAT_AMPLITUDE = 2.0;
@@ -20,7 +20,7 @@ public class Peahat extends ZeldaEnemy {
 
     public Peahat(double x, double y) {
         super(x, y, 2, 1, AIType.RANDOM);
-        this.speed = 0.8;
+        applyStats(EnemyStats.peahat());
         loadPeahatSprite();
         targetX = x;
         targetY = y;

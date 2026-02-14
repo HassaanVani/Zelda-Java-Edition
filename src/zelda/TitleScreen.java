@@ -3,8 +3,8 @@ package zelda;
 import engine.KeyHandler;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import javax.imageio.ImageIO;
 import java.io.File;
+import javax.imageio.ImageIO;
 
 public class TitleScreen {
     private ZeldaGame game;
@@ -15,62 +15,57 @@ public class TitleScreen {
     private ScreenState state = ScreenState.INTRO;
     private int selectedSlot = 0;
     private String enteredName = "";
-    private int cursorBlink = 0;
+    private int frame = 0;
     private boolean keyReleased = true;
     private int introTimer = 0;
-    private int scrollY = 0;
+    private float scrollY = 0;
 
     private BufferedImage logo;
     private SaveManager.SaveData[] saveSlots = new SaveManager.SaveData[3];
 
-    private static final Color NES_BROWN = new Color(188, 140, 76);
-    private static final Color NES_RED = new Color(180, 56, 0);
+    // NES-accurate palette colors
+    private static final Color NES_BLACK = new Color(0, 0, 0);
+    private static final Color NES_BROWN = new Color(200, 148, 64);
+    private static final Color NES_DARK_BROWN = new Color(120, 68, 0);
+    private static final Color NES_RED = new Color(188, 0, 0);
     private static final Color NES_ORANGE = new Color(252, 152, 56);
-    private static final Color NES_GRAY = new Color(116, 116, 116);
+    private static final Color NES_GOLD = new Color(252, 188, 60);
+    private static final Color NES_GREEN = new Color(0, 120, 0);
+    private static final Color NES_DARK_GREEN = new Color(0, 80, 0);
+    private static final Color NES_FOREST = new Color(44, 100, 20);
+    private static final Color NES_WATER = new Color(60, 128, 252);
+    private static final Color NES_WATER2 = new Color(92, 148, 252);
+    private static final Color NES_GRAY = new Color(124, 124, 124);
+    private static final Color NES_WHITE = new Color(252, 252, 252);
+    private static final Color NES_ROCK = new Color(120, 100, 68);
 
-    private static final int SCROLL_SPEED = 3;
-    private static final int SCROLL_END = 200;
+    private static final float SCROLL_SPEED = 0.5f;
+    private static final int SCROLL_END = 340;
 
-    private static final int LOGO_X = 38;
-    private static final int LOGO_Y = 18;
-    private static final int LOGO_W = 180;
-    private static final int LOGO_H = 100;
-
-    private static final int WATERFALL_X = 88;
-    private static final int WATERFALL_Y = 120;
-    private static final int WATERFALL_W = 80;
-    private static final int WATERFALL_H = 80;
-
-    private static final int FILE_SLOT_START_Y = 64;
-    private static final int FILE_SLOT_SPACING = 40;
-    private static final int FILE_HEART_X = 32;
-    private static final int FILE_NAME_X = 72;
-    private static final int FILE_SLOT_NUM_X = 56;
-
-    private static final int CHAR_GRID_START_X = 32;
-    private static final int CHAR_GRID_START_Y = 96;
-    private static final int CHAR_CELL_W = 16;
-    private static final int CHAR_CELL_H = 16;
     private static final int CHARS_PER_ROW = 11;
     private static final int CHAR_ROWS = 3;
     private static final int MAX_NAME_LENGTH = 8;
-
-    private static final String VALID_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123789 -";
+    private static final String VALID_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789-";
 
     private static final String[] STORY_TEXT = {
         "",
-        "MANY YEARS AGO PRINCE",
-        "DARKNESS \"GANNON\" STOLE",
-        "ONE OF THE TRIFORCE",
-        "WITH POWER. PRINCESS",
-        "ZELDA HAD ONE OF THE",
-        "TRIFORCE WITH WISDOM.",
-        "SHE DIVIDED IT INTO",
-        "8 UNITS TO HIDE IT FROM",
-        "\"GANNON\" BEFORE SHE WAS",
-        "CAPTURED. GO FIND THE",
-        "8 UNITS \"LINK\" TO SAVE",
-        "HER."
+        "",
+        " MANY YEARS AGO PRINCE",
+        " DARKNESS \"GANNON\"",
+        " STOLE ONE OF THE",
+        " TRIFORCE WITH POWER.",
+        "",
+        " PRINCESS ZELDA HAD",
+        " ONE OF THE TRIFORCE",
+        " WITH WISDOM.",
+        "",
+        " SHE DIVIDED IT INTO",
+        " 8 UNITS TO HIDE IT",
+        " FROM \"GANNON\" BEFORE",
+        " SHE WAS CAPTURED.",
+        "",
+        " GO FIND THE 8 UNITS",
+        " \"LINK\" TO SAVE HER.",
     };
 
     private int charSelectX = 0;
@@ -100,8 +95,7 @@ public class TitleScreen {
     }
 
     public void update() {
-        cursorBlink++;
-
+        frame++;
         switch (state) {
             case INTRO: updateIntro(); break;
             case TITLE: updateTitle(); break;
@@ -113,7 +107,7 @@ public class TitleScreen {
 
     private void updateIntro() {
         introTimer++;
-        scrollY = introTimer / SCROLL_SPEED;
+        scrollY = introTimer * SCROLL_SPEED;
 
         if (keyHandler.startPressed && keyReleased) {
             state = ScreenState.TITLE;
@@ -216,8 +210,10 @@ public class TitleScreen {
         }
     }
 
+    // ======================== Rendering ========================
+
     public void render(Graphics2D g2) {
-        g2.setColor(Color.BLACK);
+        g2.setColor(NES_BLACK);
         g2.fillRect(0, 0, 256, 240);
 
         switch (state) {
@@ -225,156 +221,312 @@ public class TitleScreen {
             case TITLE: renderTitle(g2); break;
             case FILE_SELECT: renderFileSelect(g2); break;
             case NAME_ENTRY: renderNameEntry(g2); break;
-            case ELIMINATION: break;
+            case ELIMINATION: renderFileSelect(g2); break;
         }
     }
 
     private void renderIntro(Graphics2D g2) {
-        g2.setFont(new Font("Monospaced", Font.PLAIN, 8));
-        g2.setColor(NES_BROWN);
+        // Landscape scene at top (always visible)
+        renderLandscape(g2);
 
-        int textStartY = 240 - scrollY;
+        // Scrolling story text in the lower portion
+        g2.setFont(new Font("Monospaced", Font.BOLD, 8));
+        int textAreaTop = 140;
+        int textAreaBot = 228;
+        int textStartY = textAreaBot - (int)scrollY;
+
+        Shape oldClip = g2.getClip();
+        g2.setClip(0, textAreaTop, 256, textAreaBot - textAreaTop);
+
         for (int i = 0; i < STORY_TEXT.length; i++) {
-            int textY = textStartY + i * 16;
-            if (textY > -16 && textY < 240) {
+            int textY = textStartY + i * 14;
+            if (textY > textAreaTop - 14 && textY < textAreaBot + 14) {
                 String line = STORY_TEXT[i];
+                g2.setColor(NES_BROWN);
                 int textWidth = g2.getFontMetrics().stringWidth(line);
                 g2.drawString(line, (256 - textWidth) / 2, textY);
             }
         }
-
-        g2.setColor(Color.BLACK);
-        g2.fillRect(0, 0, 256, 48);
-        g2.fillRect(0, 200, 256, 40);
-
-        renderWaterfall(g2);
+        g2.setClip(oldClip);
     }
 
-    private void renderWaterfall(Graphics2D g2) {
-        g2.setColor(new Color(60, 88, 36));
-        g2.fillRect(WATERFALL_X - 20, WATERFALL_Y - 8, WATERFALL_W + 40, WATERFALL_H + 16);
+    private void renderLandscape(Graphics2D g2) {
+        // Sky / dark background
+        g2.setColor(NES_BLACK);
+        g2.fillRect(0, 0, 256, 140);
 
-        int animOffset = (cursorBlink / 4) % 8;
-        g2.setColor(new Color(92, 148, 252));
-        for (int y = WATERFALL_Y; y < WATERFALL_Y + WATERFALL_H; y += 4) {
-            int rowOffset = ((y + animOffset) / 4) % 2 == 0 ? 2 : -2;
-            g2.fillRect(WATERFALL_X + rowOffset, y, WATERFALL_W - 4, 3);
-        }
-
-        g2.setColor(new Color(0, 0, 0, 180));
-        g2.fillRect(WATERFALL_X + 8, WATERFALL_Y - 4, WATERFALL_W - 16, 8);
-
+        // Logo at top
         if (logo != null) {
-            g2.drawImage(logo, LOGO_X, LOGO_Y, LOGO_W, LOGO_H, null);
+            g2.drawImage(logo, 32, 8, 192, 84, null);
         } else {
-            drawPixelText(g2, "THE LEGEND OF", 72, 24, NES_BROWN);
-            drawPixelText(g2, "ZELDA", 104, 48, NES_BROWN);
+            renderTextLogo(g2, 8);
         }
+
+        // Green hillside with waterfall
+        int hillY = 92;
+
+        // Left hill
+        g2.setColor(NES_FOREST);
+        g2.fillRect(0, hillY, 96, 48);
+        // Left trees
+        renderTree(g2, 8, hillY - 12);
+        renderTree(g2, 28, hillY - 8);
+        renderTree(g2, 56, hillY - 14);
+        renderTree(g2, 80, hillY - 6);
+
+        // Right hill
+        g2.setColor(NES_FOREST);
+        g2.fillRect(160, hillY, 96, 48);
+        // Right trees
+        renderTree(g2, 168, hillY - 10);
+        renderTree(g2, 192, hillY - 14);
+        renderTree(g2, 216, hillY - 8);
+        renderTree(g2, 236, hillY - 12);
+
+        // Rocky cliff edges
+        g2.setColor(NES_ROCK);
+        g2.fillRect(88, hillY, 12, 48);
+        g2.fillRect(156, hillY, 12, 48);
+
+        // Waterfall opening (dark)
+        g2.setColor(NES_BLACK);
+        g2.fillRect(100, hillY - 4, 56, 52);
+
+        // Waterfall animation
+        int animOff = (frame / 3) % 8;
+        for (int y = hillY; y < hillY + 44; y += 4) {
+            int waveOff = ((y + animOff) / 4) % 2 == 0 ? 2 : -2;
+            g2.setColor(((y + animOff) / 8) % 2 == 0 ? NES_WATER : NES_WATER2);
+            g2.fillRect(108 + waveOff, y, 40, 3);
+        }
+
+        // Water pool at bottom
+        g2.setColor(NES_WATER);
+        g2.fillRect(92, hillY + 44, 72, 8);
+        g2.setColor(NES_WATER2);
+        int poolWave = (frame / 6) % 2;
+        for (int x = 92; x < 164; x += 8) {
+            g2.fillRect(x + poolWave * 4, hillY + 46, 4, 2);
+        }
+
+        // Ground below waterfall
+        g2.setColor(NES_DARK_GREEN);
+        g2.fillRect(0, hillY + 48, 256, 4);
+        g2.setColor(NES_DARK_BROWN);
+        g2.fillRect(0, hillY + 52, 256, 88);
+    }
+
+    private void renderTree(Graphics2D g2, int x, int y) {
+        // Simple NES-style tree: dark trunk + green crown
+        g2.setColor(NES_DARK_BROWN);
+        g2.fillRect(x + 4, y + 10, 4, 6);
+        g2.setColor(NES_GREEN);
+        g2.fillOval(x, y, 12, 12);
+        g2.setColor(NES_DARK_GREEN);
+        g2.fillOval(x + 2, y + 2, 8, 8);
+    }
+
+    private void renderTextLogo(Graphics2D g2, int baseY) {
+        // Color cycling for the title text
+        Color[] titleColors = {NES_GOLD, NES_ORANGE, NES_BROWN, NES_ORANGE};
+        int colorIdx = (frame / 8) % titleColors.length;
+
+        g2.setFont(new Font("Monospaced", Font.BOLD, 10));
+        g2.setColor(titleColors[colorIdx]);
+        centerText(g2, "THE  LEGEND  OF", baseY + 16);
+
+        g2.setFont(new Font("Monospaced", Font.BOLD, 20));
+        g2.setColor(titleColors[(colorIdx + 1) % titleColors.length]);
+        centerText(g2, "Z E L D A", baseY + 44);
+
+        // Triforce symbol
+        drawTriforce(g2, 104, baseY + 52, NES_GOLD);
+
+        // Subtitle
+        g2.setFont(new Font("Monospaced", Font.BOLD, 7));
+        g2.setColor(NES_WHITE);
+        centerText(g2, "- NES JAVA EDITION -", baseY + 74);
+    }
+
+    private void drawTriforce(Graphics2D g2, int cx, int cy, Color color) {
+        g2.setColor(color);
+        // Top triangle
+        int[] tx = {cx + 24, cx + 32, cx + 16};
+        int[] ty = {cy, cy + 12, cy + 12};
+        g2.fillPolygon(tx, ty, 3);
+        // Bottom-left triangle
+        int[] lx = {cx + 16, cx + 24, cx + 8};
+        int[] ly = {cy + 12, cy + 24, cy + 24};
+        g2.fillPolygon(lx, ly, 3);
+        // Bottom-right triangle
+        int[] rx = {cx + 32, cx + 40, cx + 24};
+        int[] ry = {cy + 12, cy + 24, cy + 24};
+        g2.fillPolygon(rx, ry, 3);
     }
 
     private void renderTitle(Graphics2D g2) {
-        renderWaterfall(g2);
+        renderLandscape(g2);
 
-        if ((cursorBlink / 30) % 2 == 0) {
-            drawPixelText(g2, "PUSH START BUTTON", 56, 175, NES_BROWN);
+        // Flashing "PUSH START BUTTON"
+        if ((frame / 30) % 2 == 0) {
+            g2.setFont(new Font("Monospaced", Font.BOLD, 8));
+            g2.setColor(NES_BROWN);
+            centerText(g2, "PUSH START BUTTON", 172);
         }
-        drawPixelText(g2, "@ 1986 NINTENDO", 72, 208, NES_BROWN);
+
+        // Copyright
+        g2.setFont(new Font("Monospaced", Font.PLAIN, 7));
+        g2.setColor(NES_BROWN);
+        centerText(g2, "(C) 1986 NINTENDO", 200);
+
+        g2.setFont(new Font("Monospaced", Font.PLAIN, 6));
+        g2.setColor(NES_GRAY);
+        centerText(g2, "JAVA EDITION BY HASSAAN", 216);
     }
 
     private void renderFileSelect(Graphics2D g2) {
-        drawPixelText(g2, "- SELECT -", 88, 32, NES_RED);
+        // Title bar
+        g2.setFont(new Font("Monospaced", Font.BOLD, 9));
+        g2.setColor(NES_RED);
+        centerText(g2, "- SELECT -", 28);
 
+        // Decorative line
+        g2.setColor(NES_DARK_BROWN);
+        g2.fillRect(24, 34, 208, 1);
+
+        // Three save slots
+        g2.setFont(new Font("Monospaced", Font.BOLD, 8));
         for (int i = 0; i < 3; i++) {
-            int y = FILE_SLOT_START_Y + i * FILE_SLOT_SPACING;
-            boolean selected = (i == selectedSlot);
+            int y = 52 + i * 44;
+            boolean sel = (i == selectedSlot);
 
-            drawHeart(g2, FILE_HEART_X, y, selected);
-            drawPixelText(g2, String.valueOf(i + 1), FILE_SLOT_NUM_X, y + 4, Color.WHITE);
+            // Cursor heart
+            drawHeart(g2, 24, y + 2, sel);
+
+            // Slot number
+            g2.setColor(NES_WHITE);
+            g2.drawString(String.valueOf(i + 1) + ".", 40, y + 10);
 
             if (saveSlots[i] != null) {
-                drawPixelText(g2, saveSlots[i].playerName, FILE_NAME_X, y + 4, Color.WHITE);
+                // Player name
+                g2.setColor(NES_WHITE);
+                g2.drawString(saveSlots[i].playerName, 64, y + 10);
 
+                // Hearts display
                 int hearts = saveSlots[i].maxHealth / 2;
                 for (int h = 0; h < hearts; h++) {
-                    drawSmallHeart(g2, FILE_NAME_X + 80 + h * 9, y + 2);
+                    drawSmallHeart(g2, 140 + h * 10, y + 4);
                 }
             } else {
-                drawPixelText(g2, "--------", FILE_NAME_X, y + 4, NES_GRAY);
+                g2.setColor(NES_GRAY);
+                g2.drawString("- EMPTY -", 64, y + 10);
             }
+
+            // Slot separator
+            g2.setColor(new Color(40, 40, 40));
+            g2.fillRect(28, y + 28, 200, 1);
         }
 
-        int registerY = 200;
-        drawHeart(g2, FILE_HEART_X, registerY, selectedSlot == 3);
-        drawPixelText(g2, "REGISTER YOUR NAME", FILE_SLOT_NUM_X, registerY + 4, NES_RED);
+        // Register option
+        int regY = 192;
+        drawHeart(g2, 24, regY + 2, selectedSlot == 3);
+        g2.setColor(NES_RED);
+        g2.drawString("REGISTER YOUR NAME", 44, regY + 10);
 
-        int elimY = 216;
-        drawHeart(g2, FILE_HEART_X, elimY, selectedSlot == 4);
-        drawPixelText(g2, "ELIMINATION MODE", FILE_SLOT_NUM_X, elimY + 4, NES_RED);
+        // Elimination option
+        int elimY = 212;
+        drawHeart(g2, 24, elimY + 2, selectedSlot == 4);
+        g2.setColor(NES_RED);
+        g2.drawString("ELIMINATION MODE", 44, elimY + 10);
     }
 
     private void renderNameEntry(Graphics2D g2) {
-        drawPixelText(g2, "REGISTER YOUR NAME", 56, 24, NES_RED);
+        g2.setFont(new Font("Monospaced", Font.BOLD, 9));
+        g2.setColor(NES_RED);
+        centerText(g2, "REGISTER YOUR NAME", 24);
 
-        drawHeart(g2, 24, 48, true);
+        // Current name display with blinking cursor
+        g2.setFont(new Font("Monospaced", Font.BOLD, 10));
+        drawHeart(g2, 20, 42, true);
 
-        String displayName = enteredName;
-        for (int i = enteredName.length(); i < MAX_NAME_LENGTH; i++) displayName += "_";
-        drawPixelText(g2, displayName, 48, 52, Color.WHITE);
+        StringBuilder displayName = new StringBuilder(enteredName);
+        for (int i = enteredName.length(); i < MAX_NAME_LENGTH; i++) {
+            displayName.append((i == enteredName.length() && (frame / 15) % 2 == 0) ? "_" : " ");
+        }
+        g2.setColor(NES_WHITE);
+        g2.drawString(displayName.toString(), 44, 52);
+
+        // Character grid
+        g2.setFont(new Font("Monospaced", Font.BOLD, 9));
+        int gridX = 28, gridY = 80;
+        int cellW = 18, cellH = 18;
 
         for (int row = 0; row < CHAR_ROWS; row++) {
             for (int col = 0; col < CHARS_PER_ROW; col++) {
                 int idx = row * CHARS_PER_ROW + col;
                 if (idx < VALID_CHARS.length()) {
-                    int x = CHAR_GRID_START_X + col * CHAR_CELL_W;
-                    int y = CHAR_GRID_START_Y + row * CHAR_CELL_H;
-                    boolean selected = (row == charSelectY && col == charSelectX);
+                    int cx = gridX + col * cellW;
+                    int cy = gridY + row * cellH;
+                    boolean sel = (row == charSelectY && col == charSelectX);
 
-                    Color color = selected ? NES_RED : Color.WHITE;
-                    if (selected && charSelectY < CHAR_ROWS) {
-                        g2.setColor(Color.WHITE);
-                        g2.fillRect(x - 2, y - 10, 12, 12);
-                        color = Color.BLACK;
+                    if (sel) {
+                        // Highlighted selection box
+                        g2.setColor(NES_WHITE);
+                        g2.fillRect(cx - 1, cy - 11, cellW - 2, cellH - 2);
+                        g2.setColor(NES_BLACK);
+                    } else {
+                        g2.setColor(NES_WHITE);
                     }
-                    drawPixelText(g2, String.valueOf(VALID_CHARS.charAt(idx)), x, y, color);
+                    g2.drawString(String.valueOf(VALID_CHARS.charAt(idx)), cx + 2, cy);
                 }
             }
         }
 
-        int registerY = CHAR_GRID_START_Y + CHAR_ROWS * CHAR_CELL_H + 16;
-        boolean registerSelected = (charSelectY == CHAR_ROWS);
-        if (registerSelected) {
-            g2.setColor(Color.WHITE);
-            g2.fillRect(CHAR_GRID_START_X - 4, registerY - 10, 96, 14);
+        // "REGISTER END" button
+        int regY = gridY + CHAR_ROWS * cellH + 12;
+        boolean regSel = (charSelectY == CHAR_ROWS);
+        if (regSel) {
+            g2.setColor(NES_WHITE);
+            g2.fillRect(gridX - 2, regY - 11, 110, 14);
+            g2.setColor(NES_BLACK);
+        } else {
+            g2.setColor(NES_RED);
         }
-        drawPixelText(g2, "REGISTER END", CHAR_GRID_START_X, registerY,
-            registerSelected ? Color.BLACK : NES_RED);
+        g2.drawString("REGISTER END", gridX + 4, regY);
 
-        drawPixelText(g2, "Z:ADD  X:DEL  ENTER:OK", 32, 210, NES_GRAY);
+        // Controls help
+        g2.setFont(new Font("Monospaced", Font.PLAIN, 7));
+        g2.setColor(NES_GRAY);
+        centerText(g2, "Z=ADD  X=DELETE  ENTER=START", 216);
     }
 
-    private void drawHeart(Graphics2D g2, int x, int y, boolean filled) {
-        if (filled && (cursorBlink / 16) % 2 == 0) {
-            g2.setColor(NES_RED);
-        } else if (filled) {
-            g2.setColor(NES_ORANGE);
+    // ======================== Drawing Helpers ========================
+
+    private void drawHeart(Graphics2D g2, int x, int y, boolean selected) {
+        if (selected) {
+            // Animated pulsing heart
+            g2.setColor((frame / 12) % 2 == 0 ? NES_RED : NES_ORANGE);
         } else {
             g2.setColor(NES_GRAY);
         }
-        int[] xPoints = {x+4, x+8, x+12, x+8, x+4, x};
-        int[] yPoints = {y, y-2, y, y+8, y+8, y};
-        g2.fillPolygon(xPoints, yPoints, 6);
+        // Better heart shape
+        int[] hx = {x+5, x+7, x+9, x+11, x+13, x+11, x+9, x+5, x+1, x-1, x+1, x+3};
+        int[] hy = {y-2, y-3, y-2, y-1, y+2, y+5, y+8, y+10, y+5, y+2, y-1, y-2};
+        g2.fillPolygon(hx, hy, 12);
     }
 
     private void drawSmallHeart(Graphics2D g2, int x, int y) {
-        g2.setColor(new Color(200, 72, 72));
-        int[] xp = {x+3, x+6, x+9, x+6, x+3, x};
-        int[] yp = {y, y-1, y, y+6, y+6, y};
-        g2.fillPolygon(xp, yp, 6);
+        g2.setColor(NES_RED);
+        g2.fillRect(x + 1, y, 2, 1);
+        g2.fillRect(x + 5, y, 2, 1);
+        g2.fillRect(x, y + 1, 8, 2);
+        g2.fillRect(x + 1, y + 3, 6, 1);
+        g2.fillRect(x + 2, y + 4, 4, 1);
+        g2.fillRect(x + 3, y + 5, 2, 1);
     }
 
-    private void drawPixelText(Graphics2D g2, String text, int x, int y, Color color) {
-        g2.setColor(color);
-        g2.setFont(new Font("Monospaced", Font.BOLD, 8));
-        g2.drawString(text, x, y);
+    private void centerText(Graphics2D g2, String text, int y) {
+        int w = g2.getFontMetrics().stringWidth(text);
+        g2.drawString(text, (256 - w) / 2, y);
     }
 }

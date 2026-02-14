@@ -10,6 +10,8 @@ public class Inventory {
 
     // --- Sword: 0=none, 1=Wooden, 2=White, 3=Magical ---
     private int swordLevel = 0;
+    private boolean swordDisabled = false;
+    private int swordDisableTimer = 0;
 
     // --- Shield: 0=none, 1=Small (Wooden), 2=Magical ---
     private int shieldLevel = 1;
@@ -72,6 +74,9 @@ public class Inventory {
     // Tracks which dungeon rooms have been cleared per dungeon — key = "dLevel_rX_rY"
     private java.util.Set<String> clearedDungeonRooms = new java.util.HashSet<>();
 
+    // --- Freeze timer (from CLOCK item) ---
+    private int freezeTimer = 0;
+
     // --- Second Quest flag ---
     private boolean secondQuest = false;
 
@@ -95,7 +100,10 @@ public class Inventory {
     // ========== Sword ==========
     public int getSwordLevel() { return swordLevel; }
     public void setSwordLevel(int level) { swordLevel = Math.max(0, Math.min(3, level)); }
-    public boolean hasSword() { return swordLevel > 0; }
+    public boolean hasSword() { return swordLevel > 0 && !swordDisabled; }
+    public void disableSword() { swordDisabled = true; swordDisableTimer = 256; }
+    public void enableSword() { swordDisabled = false; swordDisableTimer = 0; }
+    public void tickSwordDisable() { if (swordDisableTimer > 0) { swordDisableTimer--; if (swordDisableTimer <= 0) swordDisabled = false; } }
     public int getSwordDamage() {
         switch (swordLevel) {
             case 1: return 1;
@@ -260,6 +268,12 @@ public class Inventory {
     public boolean isCaveVisited(int roomX, int roomY, int caveId) { return visitedCaves.contains(roomX + "_" + roomY + "_" + caveId); }
     public void markDungeonRoomCleared(int level, int roomX, int roomY) { clearedDungeonRooms.add(level + "_" + roomX + "_" + roomY); }
     public boolean isDungeonRoomCleared(int level, int roomX, int roomY) { return clearedDungeonRooms.contains(level + "_" + roomX + "_" + roomY); }
+
+    // ========== Freeze Timer (CLOCK item) ==========
+    public int getFreezeTimer() { return freezeTimer; }
+    public void setFreezeTimer(int t) { freezeTimer = t; }
+    public boolean isEnemiesFrozen() { return freezeTimer > 0; }
+    public void tickFreezeTimer() { if (freezeTimer > 0) freezeTimer--; }
 
     // ========== Second Quest ==========
     public boolean isSecondQuest() { return secondQuest; }

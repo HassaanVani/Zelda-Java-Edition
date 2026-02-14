@@ -1,8 +1,8 @@
 package zelda.bosses;
 
-import zelda.*;
 import java.awt.*;
 import java.util.List;
+import zelda.*;
 
 /**
  * Ganon: final boss of Level 9. Invisible, teleports around room,
@@ -77,18 +77,31 @@ public class Ganon extends ZeldaEnemy {
     public void damage(int amount) {
         if (invulnerableFrames > 0) return;
 
-        // Ganon becomes visible when hit
+        // Any hit reveals Ganon and does damage
         visible = true;
         visibleTimer = VISIBLE_DURATION;
         damageTimer = DAMAGE_FLASH_FRAMES;
         invulnerableFrames = DEFAULT_INVULN;
 
-        // Only silver arrows can actually kill (damage >= 4)
-        if (amount >= 4) {
-            health -= amount;
-            if (health <= 0) {
-                active = false;
-            }
+        health -= amount;
+        // Ganon cannot be killed by normal weapons — floor at 1 HP
+        if (health < 1) health = 1;
+    }
+
+    /**
+     * Called specifically when a silver arrow hits Ganon.
+     * Only silver arrows can deliver the killing blow.
+     */
+    public void damageBysilverArrow(int amount) {
+        if (invulnerableFrames > 0) return;
+        visible = true;
+        visibleTimer = VISIBLE_DURATION;
+        damageTimer = DAMAGE_FLASH_FRAMES;
+        invulnerableFrames = DEFAULT_INVULN;
+        health -= amount;
+        if (health <= 0) {
+            health = 0;
+            active = false;
         }
     }
 

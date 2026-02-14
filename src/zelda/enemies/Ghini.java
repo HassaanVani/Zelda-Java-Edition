@@ -1,8 +1,8 @@
 package zelda.enemies;
 
-import zelda.*;
 import java.awt.*;
 import java.util.List;
+import zelda.*;
 
 /**
  * Ghini: ghost enemy found in graveyards. Floats around erratically.
@@ -15,8 +15,8 @@ public class Ghini extends ZeldaEnemy {
     private double centerX, centerY;
 
     public Ghini(double x, double y) {
-        super(x, y, 9, 1, AIType.RANDOM);
-        this.speed = 0.6;
+        super(x, y, 10, 1, AIType.RANDOM);
+        applyStats(EnemyStats.ghini());
         this.centerX = x;
         this.centerY = y;
         sprite = loadSprite("sprites/Enemies/Ghini.png");

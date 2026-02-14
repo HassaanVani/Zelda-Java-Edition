@@ -1,8 +1,8 @@
 package zelda.enemies;
 
-import zelda.*;
 import java.awt.*;
 import java.util.List;
+import zelda.*;
 
 /**
  * Pols Voice: rabbit-like enemy that hops around. Weak to arrows (1-hit kill).
@@ -13,7 +13,7 @@ public class PolsVoice extends ZeldaEnemy {
 
     public PolsVoice(double x, double y) {
         super(x, y, 6, 1, AIType.RANDOM);
-        this.speed = 1.2;
+        applyStats(EnemyStats.polsVoice());
         vx = (Math.random() < 0.5 ? -1 : 1) * speed;
         vy = (Math.random() < 0.5 ? -1 : 1) * speed;
         sprite = loadSprite("sprites/Enemies/PolsVoice.png");

@@ -1,8 +1,8 @@
 package zelda.enemies;
 
-import zelda.*;
 import java.awt.*;
 import java.util.List;
+import zelda.*;
 
 /**
  * Lynel: centaur-like enemy that shoots sword beams at the player.
@@ -14,9 +14,9 @@ public class Lynel extends ZeldaEnemy {
     private static final int SHOOT_INTERVAL = 70;
 
     public Lynel(double x, double y, boolean blue) {
-        super(x, y, blue ? 6 : 4, blue ? 4 : 2, AIType.SHOOTER);
+        super(x, y, 4, 2, AIType.SHOOTER);
         this.isBlue = blue;
-        this.speed = blue ? 0.75 : 0.6;
+        applyStats(blue ? EnemyStats.lynelBlue() : EnemyStats.lynelRed());
         sprite = loadSprite(blue ? "sprites/Enemies/Lynel (Blue).png" : "sprites/Enemies/Lynel (Red).png");
     }
 

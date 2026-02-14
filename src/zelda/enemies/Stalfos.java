@@ -1,14 +1,14 @@
 package zelda.enemies;
 
-import zelda.*;
 import java.util.List;
+import zelda.*;
 
 public class Stalfos extends ZeldaEnemy {
     private static final int CHASE_RANGE = 80;
     
     public Stalfos(double x, double y) {
         super(x, y, 2, AIType.CHASE);
-        this.speed = 0.7;
+        applyStats(EnemyStats.stalfos());
         loadStalfosSprite();
     }
     

@@ -21,15 +21,19 @@ public class Cave {
     public static final double PLAYER_SPAWN_Y = 144;
     public static final int EXIT_THRESHOLD_Y = 168;
 
-    // Item slot positions (up to 3 items displayed)
-    private static final int[] ITEM_X = {80, 120, 160};
+    // NES-accurate item positions: X=$58=88, $78=120, $98=152
+    private static final int[] ITEM_X = {88, 120, 152};
     private static final int ITEM_Y = 88;
     private static final int ITEM_W = 12;
     private static final int ITEM_H = 16;
 
     private static final Color CAVE_BG = new Color(52, 28, 0);
-    private static final Color CAVE_WALL = new Color(116, 116, 116);
-    private static final Color FIRE_COLOR = new Color(252, 152, 56);
+    private static final Color CAVE_WALL_OUTER = new Color(146, 146, 146);
+    private static final Color CAVE_WALL_INNER = new Color(100, 100, 100);
+    private static final Color FIRE_COLOR1 = new Color(252, 152, 56);
+    private static final Color FIRE_COLOR2 = new Color(252, 216, 108);
+
+    private int frameCounter = 0;
 
     private boolean active = false;
     private boolean itemTaken = false;
@@ -150,20 +154,47 @@ public class Cave {
     }
 
     public void render(Graphics2D g2) {
+        frameCounter++;
+
         // Background
         g2.setColor(CAVE_BG);
         g2.fillRect(0, 0, CAVE_WIDTH, CAVE_HEIGHT);
 
-        // Walls
-        g2.setColor(CAVE_WALL);
-        g2.fillRect(0, 0, CAVE_WIDTH, 24);
-        g2.fillRect(0, 0, 24, CAVE_HEIGHT);
-        g2.fillRect(CAVE_WIDTH - 24, 0, 24, CAVE_HEIGHT);
+        // NES-style cave walls with arch shape
+        g2.setColor(CAVE_WALL_OUTER);
+        // Top wall
+        g2.fillRect(0, 0, CAVE_WIDTH, 32);
+        // Side walls
+        g2.fillRect(0, 0, 32, CAVE_HEIGHT);
+        g2.fillRect(CAVE_WIDTH - 32, 0, 32, CAVE_HEIGHT);
+        // Inner wall detail
+        g2.setColor(CAVE_WALL_INNER);
+        g2.fillRect(32, 0, CAVE_WIDTH - 64, 24);
+        g2.fillRect(8, 32, 16, CAVE_HEIGHT - 32);
+        g2.fillRect(CAVE_WIDTH - 24, 32, 16, CAVE_HEIGHT - 32);
 
-        // Fire torches
-        g2.setColor(FIRE_COLOR);
-        g2.fillRect(80, 64, 8, 8);
-        g2.fillRect(168, 64, 8, 8);
+        // Cave arch opening (darker inset)
+        g2.setColor(CAVE_BG);
+        g2.fillRect(32, 24, CAVE_WIDTH - 64, CAVE_HEIGHT - 24);
+
+        // Floor area
+        g2.setColor(new Color(72, 40, 8));
+        g2.fillRect(32, CAVE_HEIGHT - 48, CAVE_WIDTH - 64, 48);
+
+        // Exit opening at bottom center
+        g2.setColor(Color.BLACK);
+        g2.fillRect(CAVE_WIDTH / 2 - 16, CAVE_HEIGHT - 8, 32, 8);
+
+        // Fire torches with flickering animation
+        boolean flicker = (frameCounter / 6) % 2 == 0;
+        Color fireC = flicker ? FIRE_COLOR1 : FIRE_COLOR2;
+        g2.setColor(fireC);
+        g2.fillRect(72, 60, 8, 8);
+        g2.fillRect(176, 60, 8, 8);
+        // Torch base
+        g2.setColor(CAVE_WALL_INNER);
+        g2.fillRect(73, 68, 6, 4);
+        g2.fillRect(177, 68, 6, 4);
 
         // NPC
         if (oldManSprite != null) {
@@ -207,7 +238,7 @@ public class Cave {
                 c = new Color(160, 120, 60); break;
             case "BLUE_RING": c = new Color(60, 60, 220); break;
             case "RED_RING":  c = Color.RED; break;
-            case "BLUE_CANDLE": case "RED_CANDLE": c = FIRE_COLOR; break;
+            case "BLUE_CANDLE": case "RED_CANDLE": c = FIRE_COLOR1; break;
             case "ARROW": case "SILVER_ARROW": c = new Color(200, 200, 200); break;
             case "BOMB": c = new Color(80, 80, 80); break;
             case "KEY": case "MAGIC_KEY": c = new Color(220, 180, 60); break;

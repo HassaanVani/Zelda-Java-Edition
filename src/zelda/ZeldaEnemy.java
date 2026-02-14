@@ -2,9 +2,9 @@ package zelda;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import javax.imageio.ImageIO;
 import java.io.File;
 import java.util.List;
+import javax.imageio.ImageIO;
 
 public abstract class ZeldaEnemy {
     public static final int DEFAULT_WIDTH = 16;
@@ -31,6 +31,9 @@ public abstract class ZeldaEnemy {
     protected int damageTimer = 0;
     protected int invulnerableFrames = 0;
     protected int moveTimer = 0;
+    protected int immunityMask = 0;
+    protected int dropClass = 0;
+    protected boolean frontShield = false;
 
     protected BufferedImage sprite;
 
@@ -53,7 +56,13 @@ public abstract class ZeldaEnemy {
         if (!active) return;
 
         if (damageTimer > 0 && (damageTimer / 3) % 2 == 0) {
-            g2.setColor(Color.WHITE);
+            // NES-style damage flash: cycle white → red → blue
+            int flashPhase = (damageTimer / 2) % 3;
+            switch (flashPhase) {
+                case 0: g2.setColor(Color.WHITE); break;
+                case 1: g2.setColor(NESPalette.nesColor(0x16)); break; // red
+                case 2: g2.setColor(NESPalette.nesColor(0x12)); break; // blue
+            }
             g2.fillRect((int)x, (int)y, width, height);
         } else if (sprite != null) {
             g2.drawImage(sprite, (int)x, (int)y, width, height, null);
@@ -121,4 +130,21 @@ public abstract class ZeldaEnemy {
     public int getHealth() { return health; }
     public int getMaxHealth() { return maxHealth; }
     public boolean isActive() { return active; }
+    public int getDirection() { return direction; }
+    public int getImmunityMask() { return immunityMask; }
+    public int getDropClass() { return dropClass; }
+    public boolean hasFrontShield() { return frontShield; }
+
+    public boolean isImmuneToWeapon(int weaponDamageType) {
+        return (immunityMask & weaponDamageType) != 0;
+    }
+
+    protected void applyStats(EnemyStats.Stats stats) {
+        this.health = stats.hp;
+        this.maxHealth = stats.hp;
+        this.damage = stats.contactDamage;
+        this.speed = stats.speed;
+        this.dropClass = stats.dropClass;
+        this.immunityMask = stats.immunityMask;
+    }
 }

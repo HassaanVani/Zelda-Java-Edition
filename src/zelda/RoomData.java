@@ -69,240 +69,216 @@ public class RoomData {
         }
     }
 
-    // Cave IDs for the first quest
+    // ======================== Cave IDs ========================
     public static final int CAVE_SWORD = 0;
-    public static final int CAVE_SHOP_1 = 1;
-    public static final int CAVE_SHOP_2 = 2;
-    public static final int CAVE_SHOP_3 = 3;
-    public static final int CAVE_HINT_1 = 4;
-    public static final int CAVE_HINT_2 = 5;
-    public static final int CAVE_WHITE_SWORD = 6;
-    public static final int CAVE_MAGICAL_SWORD = 7;
-    public static final int CAVE_POTION_SHOP = 8;
-    public static final int CAVE_MONEY_GAME = 9;
-    public static final int CAVE_FAIRY_1 = 10;
-    public static final int CAVE_FAIRY_2 = 11;
-    public static final int CAVE_FAIRY_3 = 12;
-    public static final int CAVE_FAIRY_4 = 13;
-    public static final int CAVE_TAKE_ANY_1 = 14;
-    public static final int CAVE_TAKE_ANY_2 = 15;
-    public static final int CAVE_PAY_ME = 16;
-    public static final int CAVE_HINT_3 = 17;
-    public static final int CAVE_HINT_4 = 18;
+    public static final int CAVE_SHOP_A1 = 1;   // Shield 160, Key 100, Blue Candle 60
+    public static final int CAVE_SHOP_A2 = 2;
+    public static final int CAVE_SHOP_A3 = 3;
+    public static final int CAVE_SHOP_B1 = 4;   // Bombs 20, Arrow 80, Blue Candle 60
+    public static final int CAVE_SHOP_B2 = 5;
+    public static final int CAVE_SHOP_B3 = 6;
+    public static final int CAVE_SHOP_C  = 7;   // Blue Ring 250, Food 100, Key 80
+    public static final int CAVE_SHOP_D  = 8;   // Food 100, Bombs 20, Key 80
+    public static final int CAVE_WHITE_SWORD = 9;
+    public static final int CAVE_MAGICAL_SWORD = 10;
+    public static final int CAVE_POTION_SHOP = 11;
+    public static final int CAVE_MONEY_GAME = 12;
+    public static final int CAVE_FAIRY_1 = 13;
+    public static final int CAVE_FAIRY_2 = 14;
+    public static final int CAVE_FAIRY_3 = 15;
+    public static final int CAVE_FAIRY_4 = 16;
+    public static final int CAVE_TAKE_ANY_1 = 17;
+    public static final int CAVE_TAKE_ANY_2 = 18;
     public static final int CAVE_LETTER = 19;
-    public static final int CAVE_BLUE_RING = 20;
-    public static final int CAVE_POWER_BRACELET = 21;
-    public static final int CAVE_HINT_5 = 22;
-    public static final int CAVE_COAST_ITEM = 23;
+    public static final int CAVE_DOOR_REPAIR = 20;
+    public static final int CAVE_HINT_PENINSULA = 21;
+    public static final int CAVE_HINT_DODONGO = 22;
+    public static final int CAVE_HINT_SWORD = 23;
+    public static final int CAVE_HINT_TREE = 24;
+    public static final int CAVE_HINT_FAIRY = 25;
+    public static final int CAVE_HINT_TRIFORCE = 26;
+    public static final int CAVE_HINT_GRAVE = 27;
+    public static final int CAVE_HINT_SPECTACLE = 28;
+    public static final int CAVE_HINT_MAZE = 29;
+    public static final int CAVE_COAST_SECRET = 30;
+
+    private static final EnemySpawn[] NO_ENEMIES = new EnemySpawn[0];
+    private static final RoomSecret[] NO_SECRETS = new RoomSecret[0];
+
+    private static EnemySpawn e(String type, double x, double y) {
+        return new EnemySpawn(type, x, y);
+    }
 
     /**
      * Returns the room definition for the given overworld coordinates.
-     * Returns null if no special data is defined (room uses default behavior).
+     * Covers all 128 rooms of the NES 1st Quest overworld.
      */
     public static RoomDef getRoomDef(int roomX, int roomY) {
-        // Key rooms from the NES 1st quest
-        // Starting screen (7,7): no enemies, sword cave
-        if (roomX == 7 && roomY == 7) {
-            return new RoomDef(7, 7, new EnemySpawn[0], new RoomSecret[0],
-                CAVE_SWORD, 7, 3, -1, true);
+
+        // ==================== ROW 0: Death Mountain ====================
+        if (roomY == 0) {
+            if (roomX == 3) return cv(3, 0, CAVE_HINT_TRIFORCE);
+            if (roomX == 6) return dg(6, 0, 9);
+            if (roomX == 12) return new RoomDef(12, 0, NO_ENEMIES,
+                new RoomSecret[]{ new RoomSecret(SecretType.PUSH_GRAVE, 7, 3, CAVE_MAGICAL_SWORD) },
+                CAVE_MAGICAL_SWORD, 7, 3, -1, true);
+            return biome(roomX, roomY, "LynelRed", "TektiteRed", null);
         }
 
-        // Dungeon 1 entrance (7,3)
-        if (roomX == 7 && roomY == 3) {
-            return new RoomDef(7, 3, new EnemySpawn[0], new RoomSecret[0],
-                -1, -1, -1, 1, true);
+        // ==================== ROW 1: Mountains ====================
+        if (roomY == 1) {
+            if (roomX == 1)  return cv(1, 1, CAVE_SHOP_A1);
+            if (roomX == 2)  return cv(2, 1, CAVE_WHITE_SWORD);
+            if (roomX == 6)  return cv(6, 1, CAVE_HINT_TREE);
+            if (roomX == 9)  return cv(9, 1, CAVE_SHOP_B1);
+            if (roomX == 10) return dg(10, 1, 5);
+            if (roomX == 12) return dg(12, 1, 7);
+            if (roomX == 14) return cv(14, 1, CAVE_DOOR_REPAIR);
+            return biome(roomX, roomY, "LynelRed", "MoblinBlue", "TektiteRed");
         }
 
-        // Dungeon 2 entrance (12,3)
-        if (roomX == 12 && roomY == 3) {
-            return new RoomDef(12, 3, new EnemySpawn[0], new RoomSecret[0],
-                -1, -1, -1, 2, true);
+        // ==================== ROW 2: Lake/Mountains ====================
+        if (roomY == 2) {
+            if (roomX == 0)  return cv(0, 2, CAVE_SHOP_A2);
+            if (roomX == 2)  return dg(2, 2, 6);
+            if (roomX == 3)  return cv(3, 2, CAVE_LETTER);
+            if (roomX == 5)  return dg(5, 2, 4);
+            if (roomX == 7)  return fy(7, 2, CAVE_FAIRY_1);
+            if (roomX == 8)  return cv(8, 2, CAVE_TAKE_ANY_2);
+            if (roomX == 11) return fy(11, 2, CAVE_FAIRY_2);
+            if (roomX == 14) return new RoomDef(14, 2, new EnemySpawn[]{
+                    e("Armos", 64, 48), e("Armos", 96, 48), e("Armos", 128, 48),
+                    e("Armos", 160, 48), e("Armos", 192, 48),
+                    e("Armos", 64, 80), e("Armos", 96, 80), e("Armos", 128, 80),
+                    e("Armos", 160, 80), e("Armos", 192, 80),
+                }, new RoomSecret[]{ new RoomSecret(SecretType.PUSH_ROCK, 12, 3, -1) },
+                -1, -1, -1, -1, false);
+            return biome(roomX, roomY, "TektiteBlue", "OctorokBlue", null);
         }
 
-        // Dungeon 3 entrance (3,3)
-        if (roomX == 3 && roomY == 3) {
-            return new RoomDef(3, 3, new EnemySpawn[0], new RoomSecret[0],
-                -1, -1, -1, 3, true);
+        // ==================== ROW 3: Lake Hylia ====================
+        if (roomY == 3) {
+            if (roomX == 0)  return dg(0, 3, 8);
+            if (roomX == 7)  return dg(7, 3, 1);
+            if (roomX == 11) return cv(11, 3, CAVE_HINT_SWORD);
+            if (roomX == 12) return dg(12, 3, 2);
+            if (roomX == 15) return fy(15, 3, CAVE_FAIRY_3);
+            if (roomX == 14) return new RoomDef(14, 3, new EnemySpawn[]{
+                    e("Zola", 100, 60), e("Zola", 170, 90),
+                }, NO_SECRETS, -1, -1, -1, -1, false);
+            if (roomX >= 6 && roomX <= 10 && roomX != 7) {
+                double[] p1 = sp(roomX, roomY, 0), p2 = sp(roomX, roomY, 1);
+                return new RoomDef(roomX, roomY, new EnemySpawn[]{
+                    e("Zola", p1[0], p1[1]), e("Zola", p2[0], p2[1]),
+                }, NO_SECRETS, -1, -1, -1, -1, false);
+            }
+            return biome(roomX, roomY, "TektiteBlue", "OctorokRed", null);
         }
 
-        // Dungeon 4 entrance (5,2)
-        if (roomX == 5 && roomY == 2) {
-            return new RoomDef(5, 2, new EnemySpawn[0], new RoomSecret[0],
-                -1, -1, -1, 4, true);
+        // ==================== ROW 4: Forest ====================
+        if (roomY == 4) {
+            if (roomX == 1)  return cv(1, 4, CAVE_HINT_PENINSULA);
+            if (roomX == 2)  return new RoomDef(2, 4, new EnemySpawn[]{
+                    e("Armos", 64, 48), e("Armos", 128, 48), e("Armos", 192, 48),
+                }, NO_SECRETS, -1, -1, -1, -1, false);
+            if (roomX == 4)  return dg(4, 4, 3);
+            if (roomX == 6)  return cv(6, 4, CAVE_SHOP_D);
+            if (roomX == 8)  return cv(8, 4, CAVE_HINT_MAZE);
+            if (roomX == 12) return cv(12, 4, CAVE_TAKE_ANY_1);
+            return biome(roomX, roomY, "MoblinRed", "MoblinBlue", "OctorokRed");
         }
 
-        // Dungeon 5 entrance (10,1)
-        if (roomX == 10 && roomY == 1) {
-            return new RoomDef(10, 1, new EnemySpawn[0], new RoomSecret[0],
-                -1, -1, -1, 5, true);
+        // ==================== ROW 5: Graveyard/Forest ====================
+        if (roomY == 5) {
+            if (roomX == 3)  return fy(3, 5, CAVE_FAIRY_4);
+            if (roomX == 4)  return new RoomDef(4, 5, new EnemySpawn[]{
+                    e("MoblinRed", 80, 60), e("MoblinRed", 160, 100),
+                }, new RoomSecret[]{ new RoomSecret(SecretType.BURN_BUSH, 10, 6, CAVE_SHOP_B2) },
+                -1, -1, -1, -1, false);
+            if (roomX == 5)  return cv(5, 5, CAVE_SHOP_C);
+            if (roomX == 6)  return fy(6, 5, CAVE_FAIRY_1);
+            if (roomX == 8)  return new RoomDef(8, 5, new EnemySpawn[]{
+                    e("Ghini", 80, 48),
+                }, new RoomSecret[]{ new RoomSecret(SecretType.PUSH_GRAVE, 5, 4, CAVE_HINT_DODONGO) },
+                -1, -1, -1, -1, false);
+            if (roomX == 9)  return new RoomDef(9, 5, new EnemySpawn[]{
+                    e("Ghini", 60, 48), e("Ghini", 150, 80), e("Ghini", 100, 120),
+                }, NO_SECRETS, -1, -1, -1, -1, false);
+            if (roomX == 10) return new RoomDef(10, 5, new EnemySpawn[]{
+                    e("OctorokBlue", 64, 48), e("OctorokBlue", 160, 80),
+                }, new RoomSecret[]{ new RoomSecret(SecretType.BOMB_WALL, 7, 0, CAVE_COAST_SECRET) },
+                -1, -1, -1, -1, false);
+            if (roomX == 13) return cv(13, 5, CAVE_HINT_FAIRY);
+            if (roomX >= 7 && roomX <= 12) {
+                double[] p1 = sp(roomX, roomY, 0), p2 = sp(roomX, roomY, 1);
+                return new RoomDef(roomX, roomY, new EnemySpawn[]{
+                    e("Ghini", p1[0], p1[1]), e("Ghini", p2[0], p2[1]),
+                }, NO_SECRETS, -1, -1, -1, -1, false);
+            }
+            return biome(roomX, roomY, "LeeverBlue", "LeeverRed", null);
         }
 
-        // Dungeon 6 entrance (2,2)
-        if (roomX == 2 && roomY == 2) {
-            return new RoomDef(2, 2, new EnemySpawn[0], new RoomSecret[0],
-                -1, -1, -1, 6, true);
+        // ==================== ROW 6: Plains ====================
+        if (roomY == 6) {
+            if (roomX == 0)  return cv(0, 6, CAVE_HINT_GRAVE);
+            if (roomX == 4)  return cv(4, 6, CAVE_MONEY_GAME);
+            if (roomX == 7)  return cv(7, 6, CAVE_SHOP_A3);
+            if (roomX == 8)  return cv(8, 6, CAVE_HINT_DODONGO);
+            if (roomX == 10) return cv(10, 6, CAVE_SHOP_B3);
+            return biome(roomX, roomY, "Peahat", "MoblinRed", "OctorokRed");
         }
 
-        // Dungeon 7 entrance (12,1)
-        if (roomX == 12 && roomY == 1) {
-            return new RoomDef(12, 1, new EnemySpawn[0], new RoomSecret[0],
-                -1, -1, -1, 7, true);
+        // ==================== ROW 7: Starting Area ====================
+        if (roomY == 7) {
+            if (roomX == 3)  return cv(3, 7, CAVE_POTION_SHOP);
+            if (roomX == 7)  return cv(7, 7, CAVE_SWORD);
+            if (roomX == 12) return cv(12, 7, CAVE_SHOP_B2);
+            if (roomX == 15) return cv(15, 7, CAVE_HINT_SPECTACLE);
+            return biome(roomX, roomY, "OctorokRed", "OctorokBlue", null);
         }
 
-        // Dungeon 8 entrance (0,3) - through bombable wall or raft
-        if (roomX == 0 && roomY == 3) {
-            return new RoomDef(0, 3, new EnemySpawn[0], new RoomSecret[0],
-                -1, -1, -1, 8, true);
-        }
+        return biome(roomX, roomY, "OctorokRed", "OctorokBlue", null);
+    }
 
-        // Dungeon 9 / Death Mountain entrance (6,0)
-        if (roomX == 6 && roomY == 0) {
-            return new RoomDef(6, 0, new EnemySpawn[0], new RoomSecret[0],
-                -1, -1, -1, 9, true);
-        }
+    // ======================== Helper factory methods ========================
 
-        // White Sword cave (2,1) - requires 5+ hearts
-        if (roomX == 2 && roomY == 1) {
-            return new RoomDef(2, 1, new EnemySpawn[0], new RoomSecret[0],
-                CAVE_WHITE_SWORD, 7, 3, -1, true);
-        }
+    /** Simple cave room (no enemies, cave entrance at tile 7,3). */
+    private static RoomDef cv(int x, int y, int caveId) {
+        return new RoomDef(x, y, NO_ENEMIES, NO_SECRETS, caveId, 7, 3, -1, true);
+    }
 
-        // Rooms with Octorok enemies (south-central overworld)
-        if (roomX == 6 && roomY == 7) {
-            return new RoomDef(6, 7, new EnemySpawn[] {
-                new EnemySpawn("OctorokRed", 48, 48),
-                new EnemySpawn("OctorokRed", 128, 80),
-                new EnemySpawn("OctorokRed", 80, 120),
-            }, new RoomSecret[0], -1, -1, -1, -1, false);
-        }
+    /** Simple dungeon entrance room. */
+    private static RoomDef dg(int x, int y, int dungeonId) {
+        return new RoomDef(x, y, NO_ENEMIES, NO_SECRETS, -1, -1, -1, dungeonId, true);
+    }
 
-        if (roomX == 8 && roomY == 7) {
-            return new RoomDef(8, 7, new EnemySpawn[] {
-                new EnemySpawn("OctorokRed", 56, 40),
-                new EnemySpawn("OctorokRed", 160, 48),
-                new EnemySpawn("OctorokBlue", 100, 100),
-            }, new RoomSecret[0], -1, -1, -1, -1, false);
-        }
+    /** Fairy fountain room (entrance at tile 7,5). */
+    private static RoomDef fy(int x, int y, int caveId) {
+        return new RoomDef(x, y, NO_ENEMIES,
+            new RoomSecret[]{ new RoomSecret(SecretType.FAIRY_FOUNTAIN, 7, 5, -1) },
+            caveId, 7, 5, -1, true);
+    }
 
-        if (roomX == 7 && roomY == 6) {
-            return new RoomDef(7, 6, new EnemySpawn[0], new RoomSecret[0],
-                -1, -1, -1, -1, true);
-        }
+    /** Deterministic spawn position from room coords + index. */
+    private static double[] sp(int rx, int ry, int idx) {
+        int seed = rx * 17 + ry * 31 + idx * 53;
+        double x = 40 + ((seed & 0xFF) % 10) * 18;
+        double y = 32 + (((seed >> 8) & 0xFF) % 7) * 18;
+        return new double[]{x, y};
+    }
 
-        // Rooms with Moblins (forest area)
-        if (roomX == 5 && roomY == 4) {
-            return new RoomDef(5, 4, new EnemySpawn[] {
-                new EnemySpawn("MoblinRed", 64, 48),
-                new EnemySpawn("MoblinRed", 160, 80),
-                new EnemySpawn("MoblinBlue", 112, 120),
-            }, new RoomSecret[0], -1, -1, -1, -1, false);
+    /** Biome-based room with 2-3 enemy types. */
+    private static RoomDef biome(int rx, int ry, String e1, String e2, String e3) {
+        double[] p1 = sp(rx, ry, 0), p2 = sp(rx, ry, 1), p3 = sp(rx, ry, 2);
+        if (e3 != null) {
+            return new RoomDef(rx, ry, new EnemySpawn[]{
+                e(e1, p1[0], p1[1]), e(e2, p2[0], p2[1]), e(e3, p3[0], p3[1]),
+            }, NO_SECRETS, -1, -1, -1, -1, false);
         }
-
-        // Rooms with Lynels (mountain area, first quest)
-        if (roomX == 4 && roomY == 1) {
-            return new RoomDef(4, 1, new EnemySpawn[] {
-                new EnemySpawn("LynelRed", 80, 60),
-                new EnemySpawn("LynelRed", 176, 100),
-            }, new RoomSecret[0], -1, -1, -1, -1, false);
-        }
-
-        // Graveyard rooms with Ghinis (5,6 area)
-        if (roomX == 9 && roomY == 5) {
-            return new RoomDef(9, 5, new EnemySpawn[] {
-                new EnemySpawn("Ghini", 60, 48),
-                new EnemySpawn("Ghini", 150, 80),
-            }, new RoomSecret[0], -1, -1, -1, -1, false);
-        }
-
-        // Shop rooms
-        if (roomX == 6 && roomY == 5) {
-            return new RoomDef(6, 5, new EnemySpawn[0], new RoomSecret[0],
-                CAVE_SHOP_1, 7, 3, -1, true);
-        }
-
-        // Fairy fountain
-        if (roomX == 11 && roomY == 2) {
-            return new RoomDef(11, 2, new EnemySpawn[0],
-                new RoomSecret[] {
-                    new RoomSecret(SecretType.FAIRY_FOUNTAIN, 7, 5, -1)
-                },
-                -1, -1, -1, -1, true);
-        }
-
-        // Bombable wall secret
-        if (roomX == 10 && roomY == 5) {
-            return new RoomDef(10, 5, new EnemySpawn[] {
-                new EnemySpawn("OctorokBlue", 64, 48),
-                new EnemySpawn("OctorokBlue", 160, 80),
-            }, new RoomSecret[] {
-                new RoomSecret(SecretType.BOMB_WALL, 7, 0, CAVE_HINT_1)
-            }, -1, -1, -1, -1, false);
-        }
-
-        // Burnable bush secret
-        if (roomX == 4 && roomY == 5) {
-            return new RoomDef(4, 5, new EnemySpawn[] {
-                new EnemySpawn("MoblinRed", 80, 60),
-                new EnemySpawn("MoblinRed", 160, 100),
-            }, new RoomSecret[] {
-                new RoomSecret(SecretType.BURN_BUSH, 10, 6, CAVE_SHOP_2)
-            }, -1, -1, -1, -1, false);
-        }
-
-        // Pushable gravestone secret
-        if (roomX == 8 && roomY == 5) {
-            return new RoomDef(8, 5, new EnemySpawn[] {
-                new EnemySpawn("Ghini", 80, 48),
-            }, new RoomSecret[] {
-                new RoomSecret(SecretType.PUSH_GRAVE, 5, 4, CAVE_HINT_2)
-            }, -1, -1, -1, -1, false);
-        }
-
-        // Rooms with Tektites (rocky terrain)
-        if (roomX == 9 && roomY == 3) {
-            return new RoomDef(9, 3, new EnemySpawn[] {
-                new EnemySpawn("TektiteBlue", 48, 48),
-                new EnemySpawn("TektiteBlue", 144, 80),
-                new EnemySpawn("TektiteRed", 96, 120),
-            }, new RoomSecret[0], -1, -1, -1, -1, false);
-        }
-
-        // Rooms with Leevers (desert area)
-        if (roomX == 1 && roomY == 5) {
-            return new RoomDef(1, 5, new EnemySpawn[] {
-                new EnemySpawn("LeeverBlue", 64, 56),
-                new EnemySpawn("LeeverBlue", 160, 96),
-                new EnemySpawn("LeeverRed", 112, 72),
-            }, new RoomSecret[0], -1, -1, -1, -1, false);
-        }
-
-        // Rooms with Peahats
-        if (roomX == 3 && roomY == 6) {
-            return new RoomDef(3, 6, new EnemySpawn[] {
-                new EnemySpawn("Peahat", 64, 56),
-                new EnemySpawn("Peahat", 160, 96),
-                new EnemySpawn("Peahat", 112, 40),
-            }, new RoomSecret[0], -1, -1, -1, -1, false);
-        }
-
-        // Zola (Zora) water screen
-        if (roomX == 14 && roomY == 3) {
-            return new RoomDef(14, 3, new EnemySpawn[] {
-                new EnemySpawn("Zola", 100, 60),
-                new EnemySpawn("Zola", 170, 90),
-            }, new RoomSecret[0], -1, -1, -1, -1, false);
-        }
-
-        // Armos statues screen
-        if (roomX == 2 && roomY == 4) {
-            return new RoomDef(2, 4, new EnemySpawn[] {
-                new EnemySpawn("Armos", 64, 48),
-                new EnemySpawn("Armos", 128, 48),
-                new EnemySpawn("Armos", 192, 48),
-            }, new RoomSecret[0], -1, -1, -1, -1, false);
-        }
-
-        return null; // no specific data — room will use default biome spawning
+        return new RoomDef(rx, ry, new EnemySpawn[]{
+            e(e1, p1[0], p1[1]), e(e2, p2[0], p2[1]),
+            e(((rx + ry) % 2 == 0) ? e1 : e2, p3[0], p3[1]),
+        }, NO_SECRETS, -1, -1, -1, -1, false);
     }
 
     /**
@@ -313,7 +289,7 @@ public class RoomData {
         return new int[][] {
             { 7, 3},  // Dungeon 1
             {12, 3},  // Dungeon 2
-            { 3, 3},  // Dungeon 3
+            { 4, 4},  // Dungeon 3
             { 5, 2},  // Dungeon 4
             {10, 1},  // Dungeon 5
             { 2, 2},  // Dungeon 6

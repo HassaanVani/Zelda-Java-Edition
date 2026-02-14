@@ -1,14 +1,12 @@
 package zelda.enemies;
 
-import zelda.*;
 import java.awt.*;
+import java.io.File;
 import java.util.List;
 import javax.swing.ImageIcon;
-import java.io.File;
+import zelda.*;
 
 public class Moblin extends ZeldaEnemy {
-    private static final double BLACK_SPEED = 0.5;
-    private static final double RED_SPEED = 0.8;
     private static final int SHOOT_RANGE = 80;
     private static final int SHOOT_COOLDOWN = 100;
     private static final double SPEAR_SPEED = 2.5;
@@ -20,9 +18,9 @@ public class Moblin extends ZeldaEnemy {
     private Image leftSprite;
 
     public Moblin(double x, double y, boolean red) {
-        super(x, y, red ? 3 : 2, AIType.SHOOTER);
+        super(x, y, 1, AIType.SHOOTER);
         this.isRed = red;
-        this.speed = red ? RED_SPEED : BLACK_SPEED;
+        applyStats(red ? EnemyStats.moblinRed() : EnemyStats.moblinBlue());
         loadMoblinSprites();
     }
 

@@ -1,14 +1,11 @@
 package zelda.enemies;
 
-import zelda.*;
 import java.util.List;
+import zelda.*;
 
 public class Keese extends ZeldaEnemy {
     private static final int MOVE_INTERVAL_MIN = 30;
     private static final int MOVE_INTERVAL_RANGE = 60;
-    private static final double BLUE_SPEED = 1.2;
-    private static final double RED_SPEED = 1.0;
-
     private double targetX, targetY;
     private int moveTimer = 0;
     private boolean isBlue;
@@ -16,7 +13,7 @@ public class Keese extends ZeldaEnemy {
     public Keese(double x, double y, boolean blue) {
         super(x, y, 1, AIType.RANDOM);
         this.isBlue = blue;
-        this.speed = blue ? BLUE_SPEED : RED_SPEED;
+        applyStats(blue ? EnemyStats.keeseBlue() : EnemyStats.keeseRed());
         this.targetX = x;
         this.targetY = y;
         loadKeeseSprite();

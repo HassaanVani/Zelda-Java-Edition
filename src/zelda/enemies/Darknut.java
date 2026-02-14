@@ -1,8 +1,8 @@
 package zelda.enemies;
 
-import zelda.*;
 import java.awt.*;
 import java.util.List;
+import zelda.*;
 
 /**
  * Darknut: armored knight that can only be damaged from behind or the side.
@@ -11,13 +11,12 @@ import java.util.List;
  */
 public class Darknut extends ZeldaEnemy {
     private boolean isBlue;
-    private static final int RED_HP = 3;
-    private static final int BLUE_HP = 6;
 
     public Darknut(double x, double y, boolean blue) {
-        super(x, y, blue ? BLUE_HP : RED_HP, 2, AIType.RANDOM);
+        super(x, y, 4, 2, AIType.RANDOM);
         this.isBlue = blue;
-        this.speed = blue ? 1.0 : 0.75;
+        applyStats(blue ? EnemyStats.darknutBlue() : EnemyStats.darknutRed());
+        this.frontShield = true;
         this.direction = (int)(Math.random() * 4);
         this.moveTimer = 60 + (int)(Math.random() * 60);
         sprite = loadSprite(blue ? "sprites/Enemies/Darknut (Blue).png" : "sprites/Enemies/Darknut (Red).png");

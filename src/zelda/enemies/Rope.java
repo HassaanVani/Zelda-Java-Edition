@@ -1,8 +1,8 @@
 package zelda.enemies;
 
-import zelda.*;
 import java.awt.*;
 import java.util.List;
+import zelda.*;
 
 /**
  * Rope: snake enemy that charges at the player when aligned horizontally.
@@ -16,7 +16,7 @@ public class Rope extends ZeldaEnemy {
 
     public Rope(double x, double y) {
         super(x, y, 1, 1, AIType.CHASE);
-        this.speed = NORMAL_SPEED;
+        applyStats(EnemyStats.rope());
         sprite = loadSprite("sprites/Enemies/Rope.png");
     }
 

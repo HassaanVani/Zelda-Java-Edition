@@ -1,8 +1,8 @@
 package zelda.enemies;
 
-import zelda.*;
 import java.awt.*;
 import java.util.List;
+import zelda.*;
 
 /**
  * Wizzrobe: magic-casting enemy that teleports and shoots magic.
@@ -20,7 +20,7 @@ public class Wizzrobe extends ZeldaEnemy {
     public Wizzrobe(double x, double y, boolean blue) {
         super(x, y, 3, 2, AIType.SHOOTER);
         this.isBlue = blue;
-        this.speed = blue ? 0 : 0.75;
+        applyStats(blue ? EnemyStats.wizzrobeBlue() : EnemyStats.wizzrobeRed());
         sprite = loadSprite(blue ? "sprites/Enemies/Wizzrobe (Blue).png" : "sprites/Enemies/Wizzrobe (Red).png");
     }
 

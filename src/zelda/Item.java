@@ -2,8 +2,8 @@ package zelda;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import javax.imageio.ImageIO;
 import java.io.File;
+import javax.imageio.ImageIO;
 
 public class Item {
     public enum ItemType {
@@ -13,12 +13,25 @@ public class Item {
         FIVE_RUPEES(0, 5, 0, 0),
         KEY(0, 0, 1, 0),
         BOMB(0, 0, 0, 1),
+        FAIRY(6, 0, 0, 0),
+        BOMB_DROP(0, 0, 0, 4),
         CLOCK(0, 0, 0, 0),
         SWORD(0, 0, 0, 0),
         BOOMERANG(0, 0, 0, 0),
         MAP(0, 0, 0, 0),
         COMPASS(0, 0, 0, 0),
-        TRIFORCE(0, 0, 0, 0);
+        TRIFORCE(0, 0, 0, 0),
+        BOSS_KEY(0, 0, 0, 0),
+        BOW(0, 0, 0, 0),
+        MAGICAL_BOOMERANG(0, 0, 0, 0),
+        RAFT(0, 0, 0, 0),
+        STEPLADDER(0, 0, 0, 0),
+        RECORDER(0, 0, 0, 0),
+        MAGICAL_ROD(0, 0, 0, 0),
+        RED_CANDLE(0, 0, 0, 0),
+        MAGICAL_KEY(0, 0, 0, 0),
+        SILVER_ARROW(0, 0, 0, 0),
+        ZELDA(0, 0, 0, 0);
 
         public final int healAmount;
         public final int rupeeAmount;
@@ -62,12 +75,25 @@ public class Item {
             case FIVE_RUPEES: filename = "Rupy.gif"; break;
             case KEY: filename = "Key.gif"; break;
             case BOMB: filename = "Bomb.gif"; break;
+            case FAIRY: filename = "Fairy.gif"; break;
+            case BOMB_DROP: filename = "Bomb.gif"; break;
             case CLOCK: filename = "Clock.gif"; break;
             case SWORD: filename = "Wooden Sword (Up).gif"; break;
             case BOOMERANG: filename = "Boomerang.gif"; break;
             case MAP: filename = "Map.gif"; break;
             case COMPASS: filename = "Compass.gif"; break;
             case TRIFORCE: filename = "Triforce Shard.gif"; break;
+            case BOSS_KEY: filename = "Key.gif"; break;
+            case BOW: filename = "Bow.gif"; break;
+            case MAGICAL_BOOMERANG: filename = "Magical Boomerang.gif"; break;
+            case RAFT: filename = "Raft.gif"; break;
+            case STEPLADDER: filename = "Stepladder.gif"; break;
+            case RECORDER: filename = "Recorder.gif"; break;
+            case MAGICAL_ROD: filename = "Magical Rod.gif"; break;
+            case RED_CANDLE: filename = "Red Candle.gif"; break;
+            case MAGICAL_KEY: filename = "Magical Key.gif"; break;
+            case SILVER_ARROW: filename = "Silver Arrow.gif"; break;
+            case ZELDA: filename = "Zelda.gif"; break;
         }
 
         try {
@@ -87,9 +113,13 @@ public class Item {
     }
 
     public void applyEffect(ZeldaPlayer player) {
+        Inventory inv = player.getInventory();
         switch (type) {
             case HEART:
                 player.heal(type.healAmount);
+                break;
+            case HEART_CONTAINER:
+                inv.addHeartContainer();
                 break;
             case RUPEE:
             case FIVE_RUPEES:
@@ -101,11 +131,58 @@ public class Item {
             case BOMB:
                 player.addBombs(type.bombAmount);
                 break;
+            case FAIRY:
+                player.heal(type.healAmount);
+                break;
+            case BOMB_DROP:
+                player.addBombs(type.bombAmount);
+                break;
             case SWORD:
                 player.setHasSword(true);
                 break;
             case BOOMERANG:
                 player.setHasBoomerang(true);
+                break;
+            case MAP:
+                // Dungeon map — handled by dungeon-level code
+                break;
+            case COMPASS:
+                // Dungeon compass — handled by dungeon-level code
+                break;
+            case TRIFORCE:
+                // Triforce shard — handled by dungeon-level code
+                break;
+            case CLOCK:
+                inv.setFreezeTimer(300); // ~5 seconds at 60fps
+                break;
+            case BOW:
+                inv.setHasBow(true);
+                if (inv.getArrowLevel() == 0) inv.setArrowLevel(1);
+                break;
+            case MAGICAL_BOOMERANG:
+                inv.setBoomerangLevel(2);
+                break;
+            case RAFT:
+                inv.setHasRaft(true);
+                break;
+            case STEPLADDER:
+                inv.setHasLadder(true);
+                break;
+            case RECORDER:
+                inv.setHasRecorder(true);
+                break;
+            case MAGICAL_ROD:
+                inv.setHasRod(true);
+                break;
+            case RED_CANDLE:
+                inv.setCandleLevel(2);
+                break;
+            case MAGICAL_KEY:
+                inv.setHasMagicKey(true);
+                break;
+            case SILVER_ARROW:
+                inv.setArrowLevel(2);
+                if (!inv.hasBow()) inv.setHasBow(true);
                 break;
             default:
                 break;
@@ -121,11 +198,44 @@ public class Item {
         if (!active) return;
         if (blinkTimer > 0 && (blinkTimer / 4) % 2 == 0) return;
 
-        if (sprite != null) {
-            g2.drawImage(sprite, (int)x, (int)y, null);
+        int drawX = (int)x;
+        int drawY = (int)y;
+
+        // Important items get a palette-cycling flash effect (NES-style)
+        boolean isSpecial = isSpecialItem();
+        if (isSpecial && sprite != null) {
+            int flashCycle = (lifeTimer / 8) % 4;
+            if (flashCycle == 0) {
+                // Normal render
+                g2.drawImage(sprite, drawX, drawY, null);
+            } else {
+                // Flash with tinted overlay
+                g2.drawImage(sprite, drawX, drawY, null);
+                Color flashColor;
+                switch (flashCycle) {
+                    case 1: flashColor = new Color(255, 255, 255, 80); break;
+                    case 2: flashColor = new Color(255, 200, 60, 60); break;
+                    case 3: flashColor = new Color(200, 255, 200, 60); break;
+                    default: flashColor = new Color(255, 255, 255, 40); break;
+                }
+                g2.setColor(flashColor);
+                g2.fillRect(drawX, drawY, width, height);
+            }
+        } else if (sprite != null) {
+            g2.drawImage(sprite, drawX, drawY, null);
         } else {
             g2.setColor(getItemColor());
-            g2.fillRect((int)x, (int)y, width, height);
+            g2.fillRect(drawX, drawY, width, height);
+        }
+    }
+
+    private boolean isSpecialItem() {
+        switch (type) {
+            case TRIFORCE: case HEART_CONTAINER: case BOW: case MAGICAL_BOOMERANG:
+            case RAFT: case STEPLADDER: case RECORDER: case MAGICAL_ROD:
+            case RED_CANDLE: case MAGICAL_KEY: case SILVER_ARROW: case BOSS_KEY:
+                return true;
+            default: return false;
         }
     }
 
@@ -135,7 +245,9 @@ public class Item {
             case RUPEE: return new Color(0, 200, 0);
             case FIVE_RUPEES: return new Color(50, 100, 255);
             case KEY: return new Color(255, 215, 0);
-            case BOMB: return Color.DARK_GRAY;
+            case BOMB:
+            case BOMB_DROP: return Color.DARK_GRAY;
+            case FAIRY: return new Color(255, 180, 200);
             case TRIFORCE: return Color.YELLOW;
             default: return Color.WHITE;
         }

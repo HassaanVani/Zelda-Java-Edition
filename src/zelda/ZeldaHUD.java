@@ -8,6 +8,7 @@ public class ZeldaHUD {
     private ZeldaPlayer player;
     private boolean inDungeon = false;
     private int dungeonLevel = 0;
+    private ZeldaDungeon dungeon = null;
 
     private Image heartFull, heartHalf, heartEmpty;
     private Image rupeeIcon, keyIcon, bombIcon;
@@ -82,6 +83,7 @@ public class ZeldaHUD {
 
     public void setPlayer(ZeldaPlayer p) { this.player = p; }
     public void setInDungeon(boolean d, int level) { this.inDungeon = d; this.dungeonLevel = level; }
+    public void setDungeon(ZeldaDungeon dg) { this.dungeon = dg; }
 
     public void render(Graphics2D g2, ZeldaRoom room) {
         blinkTimer++;
@@ -100,7 +102,9 @@ public class ZeldaHUD {
         g2.setColor(MAP_BORDER);
         g2.drawRect(MINIMAP_X - 1, MINIMAP_Y - 1, MINIMAP_W + 1, MINIMAP_H + 1);
 
-        if (room != null) {
+        if (inDungeon && dungeon != null) {
+            renderDungeonMinimap(g2);
+        } else if (room != null) {
             int cellW = MINIMAP_W / OverworldRenderer.MAP_COLS;
             int cellH = MINIMAP_H / OverworldRenderer.MAP_ROWS;
             int dx = MINIMAP_X + room.getRoomX() * cellW;
@@ -116,6 +120,55 @@ public class ZeldaHUD {
             g2.setColor(HUD_TEXT);
             g2.drawString("LEVEL-" + dungeonLevel, MINIMAP_X, MINIMAP_Y - 4);
         }
+    }
+
+    private void renderDungeonMinimap(Graphics2D g2) {
+        int mw = dungeon.getMapWidth();
+        int mh = dungeon.getMapHeight();
+        if (mw <= 0 || mh <= 0) return;
+
+        int cellW = MINIMAP_W / mw;
+        int cellH = MINIMAP_H / mh;
+        boolean hasMap = player != null && player.getInventory().hasMap(dungeonLevel);
+
+        // Use dungeon palette for minimap room color
+        Color wallColor = NESPalette.getDungeonWallColor(dungeonLevel);
+        Color visitedColor = new Color(
+            Math.min(wallColor.getRed() + 60, 255),
+            Math.min(wallColor.getGreen() + 60, 255),
+            Math.min(wallColor.getBlue() + 60, 255));
+        Color unvisitedColor = NESPalette.darken(wallColor, 0.5f);
+
+        // Draw visited rooms (or all rooms if player has map)
+        for (int ry = 0; ry < mh; ry++) {
+            for (int rx = 0; rx < mw; rx++) {
+                DungeonRoom dr = dungeon.getRoom(rx, ry);
+                if (dr != null && (dr.isVisited() || hasMap)) {
+                    int dx = MINIMAP_X + rx * cellW;
+                    int dy = MINIMAP_Y + ry * cellH;
+                    g2.setColor(dr.isVisited() ? visitedColor : unvisitedColor);
+                    g2.fillRect(dx + 1, dy + 1, cellW - 1, cellH - 1);
+                }
+            }
+        }
+
+        // Compass: show triforce room indicator (blinking red)
+        boolean hasCompass = player != null && player.getInventory().hasCompass(dungeonLevel);
+        if (hasCompass && dungeon.getTriforceRoomX() >= 0) {
+            int tx = MINIMAP_X + dungeon.getTriforceRoomX() * cellW;
+            int ty = MINIMAP_Y + dungeon.getTriforceRoomY() * cellH;
+            if ((blinkTimer / 8) % 2 == 0) {
+                g2.setColor(Color.RED);
+                g2.fillRect(tx + 1, ty + 1, Math.max(cellW - 1, 2), Math.max(cellH - 1, 2));
+            }
+        }
+
+        // Player dot (blinking green)
+        int px = MINIMAP_X + dungeon.getCurrentRoomX() * cellW;
+        int py = MINIMAP_Y + dungeon.getCurrentRoomY() * cellH;
+        Color dotColor = (blinkTimer / 10) % 2 == 0 ? MAP_DOT : MAP_DOT_ALT;
+        g2.setColor(dotColor);
+        g2.fillRect(px + 1, py + 1, Math.max(cellW - 1, 2), Math.max(cellH - 1, 2));
     }
 
     private void renderInventory(Graphics2D g2) {

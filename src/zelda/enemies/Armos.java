@@ -1,8 +1,8 @@
 package zelda.enemies;
 
-import zelda.*;
 import java.awt.*;
 import java.util.List;
+import zelda.*;
 
 /**
  * Armos: statue enemy that activates when Link touches it, then chases him.
@@ -13,7 +13,7 @@ public class Armos extends ZeldaEnemy {
 
     public Armos(double x, double y) {
         super(x, y, 3, 1, AIType.CHASE);
-        this.speed = 1.0;
+        applyStats(EnemyStats.armos());
         sprite = loadSprite("sprites/Enemies/Armos.png");
     }
 

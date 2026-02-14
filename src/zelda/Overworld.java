@@ -55,4 +55,10 @@ public class Overworld {
     public ZeldaRoom getRoom(int x, int y) {
         return rooms.get(x + "," + y);
     }
+
+    public void setItemDropSystem(ItemDropSystem ids) {
+        for (ZeldaRoom room : rooms.values()) {
+            room.setItemDropSystem(ids);
+        }
+    }
 }

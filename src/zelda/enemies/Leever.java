@@ -1,13 +1,11 @@
 package zelda.enemies;
 
-import zelda.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.List;
+import zelda.*;
 
 public class Leever extends ZeldaEnemy {
-    private static final double BLUE_SPEED = 0.8;
-    private static final double RED_SPEED = 0.5;
     private static final int BURROW_DURATION = 90;
     private static final int EMERGE_DURATION = 20;
     private static final int ACTIVE_DURATION = 120;
@@ -23,9 +21,9 @@ public class Leever extends ZeldaEnemy {
     private enum LeeverState { BURROWED, EMERGING, ACTIVE, BURROWING }
 
     public Leever(double x, double y, boolean isBlue) {
-        super(x, y, isBlue ? 2 : 1, 1, AIType.CHASE);
+        super(x, y, 2, 1, AIType.CHASE);
         this.isBlue = isBlue;
-        this.speed = isBlue ? BLUE_SPEED : RED_SPEED;
+        applyStats(isBlue ? EnemyStats.leeverBlue() : EnemyStats.leeverRed());
         loadLeeverSprites();
     }
 

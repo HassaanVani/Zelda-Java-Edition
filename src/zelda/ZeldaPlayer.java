@@ -10,9 +10,10 @@ public class ZeldaPlayer {
     public static final int HEIGHT = 16;
     public static final double MOVE_SPEED = 1.5;
     public static final int ATTACK_DURATION = 12;
-    public static final int INVULN_FRAMES = 60;
+    public static final int INVULN_FRAMES = 24;
     public static final int ANIM_CYCLE_RATE = 10;
-    public static final int KNOCKBACK_FORCE = 4;
+    public static final int KNOCKBACK_DISTANCE = 32;
+    public static final double KNOCKBACK_SPEED = 2.0;
 
     public static final int DIR_UP = 0;
     public static final int DIR_LEFT = 1;
@@ -41,6 +42,9 @@ public class ZeldaPlayer {
     private String currentColorVariant = "Normal";
 
     private int invulnerableFrames = 0;
+    private double knockbackDX = 0;
+    private double knockbackDY = 0;
+    private int knockbackRemaining = 0;
 
     private KeyHandler keyHandler;
 
@@ -116,6 +120,19 @@ public class ZeldaPlayer {
 
         if (invulnerableFrames > 0) invulnerableFrames--;
 
+        if (knockbackRemaining > 0) {
+            worldX += knockbackDX;
+            worldY += knockbackDY;
+            knockbackRemaining -= (int) KNOCKBACK_SPEED;
+            if (knockbackRemaining <= 0) {
+                knockbackRemaining = 0;
+                knockbackDX = 0;
+                knockbackDY = 0;
+            }
+            clampToPlayArea();
+            return;
+        }
+
         if (attackTimer > 0) {
             attackTimer--;
             if (attackTimer == 0) attacking = false;
@@ -169,7 +186,9 @@ public class ZeldaPlayer {
     }
 
     public void render(Graphics2D g2) {
-        if (invulnerableFrames > 0 && (invulnerableFrames / 3) % 2 == 0) return;
+        // NES-style invincibility: alternate between visible and color-tinted frames
+        boolean invulnHidden = invulnerableFrames > 0 && (invulnerableFrames / 2) % 3 == 0;
+        if (invulnHidden) return;
 
         boolean isAttack = attacking && inventory.hasSword();
         Image img = isAttack ? attackImages[direction][animFrame] : walkImages[direction][animFrame];
@@ -196,6 +215,19 @@ public class ZeldaPlayer {
                 g2.drawImage(img, drawX + dw, drawY, -dw, dh, null);
             } else {
                 g2.drawImage(img, drawX, drawY, dw, dh, null);
+            }
+
+            // NES-style color flash overlay during invulnerability
+            if (invulnerableFrames > 0) {
+                int flashPhase = (invulnerableFrames / 2) % 3;
+                Color flashColor;
+                switch (flashPhase) {
+                    case 1: flashColor = new Color(255, 60, 60, 100); break;   // red tint
+                    case 2: flashColor = new Color(60, 60, 255, 100); break;   // blue tint
+                    default: flashColor = new Color(255, 255, 255, 80); break;  // white tint
+                }
+                g2.setColor(flashColor);
+                g2.fillRect(drawX, drawY, dw, dh);
             }
         } else {
             g2.setColor(Color.GREEN);
@@ -236,10 +268,13 @@ public class ZeldaPlayer {
         double dy = worldY - sourceY;
         double dist = Math.sqrt(dx * dx + dy * dy);
         if (dist > 0) {
-            worldX += (dx / dist) * KNOCKBACK_FORCE;
-            worldY += (dy / dist) * KNOCKBACK_FORCE;
+            knockbackDX = (dx / dist) * KNOCKBACK_SPEED;
+            knockbackDY = (dy / dist) * KNOCKBACK_SPEED;
+            knockbackRemaining = KNOCKBACK_DISTANCE;
         }
     }
+
+    public boolean isKnockedBack() { return knockbackRemaining > 0; }
 
     public void revertPosition() {
         worldX = oldX;
@@ -325,6 +360,7 @@ public class ZeldaPlayer {
                 boom.setColor(inventory.hasMagicalBoomerang() ? Color.CYAN : new Color(180, 120, 60));
                 boom.setSize(8, 8);
                 boom.setDamage(0); // boomerang stuns, doesn't kill
+                boom.setReturnTarget(this, inventory.hasMagicalBoomerang() ? 256 : 80);
                 roomProjectiles.add(boom);
                 bItemCooldown = B_ITEM_COOLDOWN_FRAMES;
                 break;
@@ -335,6 +371,7 @@ public class ZeldaPlayer {
                 bomb.setColor(Color.DARK_GRAY);
                 bomb.setSize(12, 12);
                 bomb.setDamage(4);
+                bomb.setIsBomb(true);
                 roomProjectiles.add(bomb);
                 bItemCooldown = B_ITEM_COOLDOWN_FRAMES * 2;
                 break;
@@ -388,7 +425,8 @@ public class ZeldaPlayer {
                 Projectile rodBeam = new Projectile(cx - 3, cy - 3, vx, vy, true);
                 rodBeam.setColor(new Color(255, 100, 100));
                 rodBeam.setSize(6, 6);
-                rodBeam.setDamage(1);
+                rodBeam.setDamage(inventory.hasBook() ? 2 : 1);
+                rodBeam.setLeaveFire(inventory.hasBook());
                 roomProjectiles.add(rodBeam);
                 bItemCooldown = B_ITEM_COOLDOWN_FRAMES;
                 break;

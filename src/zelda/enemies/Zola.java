@@ -1,8 +1,8 @@
 package zelda.enemies;
 
-import zelda.*;
 import java.awt.*;
 import java.util.List;
+import zelda.*;
 
 /**
  * Zola (Zora): water enemy that surfaces briefly to shoot fireballs, then submerges.
@@ -18,6 +18,7 @@ public class Zola extends ZeldaEnemy {
 
     public Zola(double x, double y) {
         super(x, y, 2, 1, AIType.SHOOTER);
+        applyStats(EnemyStats.zola());
         sprite = loadSprite("sprites/Enemies/Zola.png");
     }
 

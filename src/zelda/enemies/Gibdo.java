@@ -1,8 +1,8 @@
 package zelda.enemies;
 
-import zelda.*;
 import java.awt.*;
 import java.util.List;
+import zelda.*;
 
 /**
  * Gibdo: mummy enemy that walks randomly. Tough, 6 HP.
@@ -12,7 +12,7 @@ public class Gibdo extends ZeldaEnemy {
 
     public Gibdo(double x, double y) {
         super(x, y, 6, 2, AIType.RANDOM);
-        this.speed = 0.5;
+        applyStats(EnemyStats.gibdo());
         sprite = loadSprite("sprites/Enemies/Gibdo.png");
     }
 

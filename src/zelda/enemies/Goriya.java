@@ -1,8 +1,8 @@
 package zelda.enemies;
 
-import zelda.*;
 import java.awt.*;
 import java.util.List;
+import zelda.*;
 
 /**
  * Goriya: throws boomerangs at the player. Moves randomly.
@@ -12,13 +12,11 @@ public class Goriya extends ZeldaEnemy {
     private boolean isBlue;
     private int shootCooldown = 0;
     private static final int SHOOT_INTERVAL = 90;
-    private static final int RED_HP = 3;
-    private static final int BLUE_HP = 5;
 
     public Goriya(double x, double y, boolean blue) {
-        super(x, y, blue ? BLUE_HP : RED_HP, 1, AIType.SHOOTER);
+        super(x, y, 3, 1, AIType.SHOOTER);
         this.isBlue = blue;
-        this.speed = blue ? 0.75 : 0.5;
+        applyStats(blue ? EnemyStats.goriyaBlue() : EnemyStats.goriyaRed());
         sprite = loadSprite(blue ? "sprites/Enemies/Goriya (Blue).png" : "sprites/Enemies/Goriya (Red).png");
     }
 

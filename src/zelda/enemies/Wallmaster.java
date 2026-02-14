@@ -1,8 +1,8 @@
 package zelda.enemies;
 
-import zelda.*;
 import java.awt.*;
 import java.util.List;
+import zelda.*;
 
 /**
  * Wallmaster: giant hand that emerges from walls and grabs Link,
@@ -19,7 +19,7 @@ public class Wallmaster extends ZeldaEnemy {
 
     public Wallmaster(double x, double y) {
         super(x, y, 2, 1, AIType.CHASE);
-        this.speed = 1.5;
+        applyStats(EnemyStats.wallmaster());
         sprite = loadSprite("sprites/Enemies/Wallmaster.png");
     }
 

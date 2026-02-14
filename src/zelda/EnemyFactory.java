@@ -81,16 +81,21 @@ public class EnemyFactory {
             // Wallmaster
             case "Wallmaster":   return new Wallmaster(x, y);
 
-            // Gel/Zol (small enemies, use Keese as base behavior)
-            case "GelBlack":     return new Keese(x, y, false);
-            case "GelGreen":     return new Keese(x, y, false);
-            case "ZolGreen":     return new Keese(x, y, false);
-            case "ZolGrey":      return new Keese(x, y, false);
+            // Gel/Zol
+            case "Gel":
+            case "GelBlack":
+            case "GelGreen":     return new Gel(x, y);
+            case "Zol":
+            case "ZolGreen":
+            case "ZolGrey":      return new Zol(x, y);
 
-            // Bubble (invulnerable, use Keese as base behavior)
-            case "Bubble":       return new Keese(x, y, false);
-            case "BubbleBlue":   return new Keese(x, y, true);
-            case "BubbleRed":    return new Keese(x, y, false);
+            // Bubble (invulnerable, disables sword on contact)
+            case "Bubble":
+            case "BubbleRed":    return new Bubble(x, y, false);
+            case "BubbleBlue":   return new Bubble(x, y, true);
+
+            // Trap (invulnerable blade trap)
+            case "Trap":         return new Trap(x, y);
 
             default:
                 System.err.println("[EnemyFactory] Unknown enemy type: " + type);

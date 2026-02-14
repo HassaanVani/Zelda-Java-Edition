@@ -31,6 +31,11 @@ public class ZeldaRoom {
     private OverworldRenderer overworldRenderer;
     private CollisionMap collisionMap;
     private RoomData.RoomDef roomDef;
+    private ItemDropSystem itemDropSystem;
+
+    // Auto-detected entrance tile from sprite map (overrides hardcoded positions)
+    private int detectedEntranceTileX = -1;
+    private int detectedEntranceTileY = -1;
 
     public ZeldaRoom(int roomX, int roomY) {
         this.roomX = roomX;
@@ -41,6 +46,16 @@ public class ZeldaRoom {
         this.overworldRenderer = renderer;
         this.collisionMap = collision;
         this.roomDef = RoomData.getRoomDef(roomX, roomY);
+
+        // Auto-detect entrance from sprite map for rooms with caves or dungeons
+        if (roomDef != null && (roomDef.caveId >= 0 || roomDef.dungeonId >= 0)) {
+            int[] detected = collision.getDetectedEntrance(roomX, roomY);
+            if (detected != null) {
+                detectedEntranceTileX = detected[0];
+                detectedEntranceTileY = detected[1];
+            }
+        }
+
         if (!visited) {
             spawnEnemies();
             visited = true;
@@ -52,7 +67,14 @@ public class ZeldaRoom {
         if (roomDef != null) {
             if (roomDef.noEnemies) return;
             for (RoomData.EnemySpawn es : roomDef.enemies) {
-                ZeldaEnemy enemy = EnemyFactory.create(es.type, es.x, es.y);
+                double sx = es.x, sy = es.y;
+                // If spawn position is in a wall, find a nearby walkable spot
+                if (!isWalkable((int)sx + 8, (int)sy + 8)) {
+                    double[] safe = findWalkableNear(sx, sy);
+                    if (safe == null) continue; // skip if no walkable spot
+                    sx = safe[0]; sy = safe[1];
+                }
+                ZeldaEnemy enemy = EnemyFactory.create(es.type, sx, sy);
                 if (enemy != null) enemies.add(enemy);
             }
             return;
@@ -116,9 +138,14 @@ public class ZeldaRoom {
     }
 
     public void update(ZeldaPlayer player) {
+        Inventory inv = player.getInventory();
+        boolean frozen = inv.isEnemiesFrozen();
+        inv.tickFreezeTimer();
+        inv.tickSwordDisable();
+
         for (int i = enemies.size() - 1; i >= 0; i--) {
             ZeldaEnemy e = enemies.get(i);
-            e.update(player, this, projectiles);
+            if (!frozen) e.update(player, this, projectiles);
             if (!e.isAlive()) {
                 dropItem(e);
                 enemies.remove(i);
@@ -127,8 +154,19 @@ public class ZeldaRoom {
 
         for (int i = projectiles.size() - 1; i >= 0; i--) {
             Projectile p = projectiles.get(i);
+            boolean wasBefore = p.isActive();
             p.update();
-            if (!p.isActive()) projectiles.remove(i);
+            if (!p.isActive()) {
+                // Rod + Book: spawn fire where beam hit
+                if (wasBefore && p.doesLeaveFire()) {
+                    Projectile fire = new Projectile(p.getX(), p.getY(), 0, 0, true);
+                    fire.setColor(Color.ORANGE);
+                    fire.setSize(8, 8);
+                    fire.setDamage(1);
+                    projectiles.add(fire);
+                }
+                projectiles.remove(i);
+            }
         }
 
         for (int i = items.size() - 1; i >= 0; i--) {
@@ -146,24 +184,74 @@ public class ZeldaRoom {
     }
 
     private void dropItem(ZeldaEnemy enemy) {
-        double roll = Math.random();
-        if (roll < 0.25) {
-            items.add(new Item(enemy.getX(), enemy.getY(), Item.ItemType.HEART));
-        } else if (roll < 0.35) {
-            items.add(new Item(enemy.getX(), enemy.getY(), Item.ItemType.RUPEE));
-        } else if (roll < 0.40) {
-            items.add(new Item(enemy.getX(), enemy.getY(), Item.ItemType.FIVE_RUPEES));
+        if (itemDropSystem == null) return;
+        Item.ItemType drop = itemDropSystem.onEnemyKilled(enemy.getDropClass());
+        if (drop != null) {
+            items.add(new Item(enemy.getX(), enemy.getY(), drop));
         }
     }
 
+    public void setItemDropSystem(ItemDropSystem ids) { this.itemDropSystem = ids; }
+
+    private static int globalFrameCounter = 0;
+
     public void render(Graphics2D g2) {
+        globalFrameCounter++;
+
         if (overworldRenderer != null) {
             overworldRenderer.renderRoom(g2, roomX, roomY);
+
+            // Water shimmer palette cycling (NES-style)
+            if (collisionMap != null) {
+                renderWaterShimmer(g2);
+            }
         }
 
         for (Item item : items) item.render(g2);
         for (ZeldaEnemy e : enemies) e.render(g2);
         for (Projectile p : projectiles) p.render(g2);
+    }
+
+    private void renderWaterShimmer(Graphics2D g2) {
+        int phase = (globalFrameCounter / 12) % 3;
+        int alpha;
+        int r, gr, b;
+        switch (phase) {
+            case 0: r = 55; gr = 172; b = 255; alpha = 25; break;
+            case 1: r = 78; gr = 142; b = 255; alpha = 30; break;
+            case 2: r = 56; gr = 222; b = 206; alpha = 20; break;
+            default: r = 55; gr = 172; b = 255; alpha = 25; break;
+        }
+        Color shimmer = new Color(r, gr, b, alpha);
+
+        for (int ty = 0; ty < TILES_Y; ty++) {
+            for (int tx = 0; tx < TILES_X; tx++) {
+                TileType tt = collisionMap.getTileType(roomX, roomY, tx, ty);
+                if (tt == TileType.WATER) {
+                    g2.setColor(shimmer);
+                    g2.fillRect(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                }
+            }
+        }
+    }
+
+    /** Search nearby tiles in expanding rings to find a walkable spawn position. */
+    private double[] findWalkableNear(double origX, double origY) {
+        for (int radius = 1; radius <= 6; radius++) {
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dy = -radius; dy <= radius; dy++) {
+                    if (Math.abs(dx) != radius && Math.abs(dy) != radius) continue;
+                    double nx = origX + dx * TILE_SIZE;
+                    double ny = origY + dy * TILE_SIZE;
+                    if (nx < SPAWN_MARGIN || nx > ROOM_PIXEL_W - SPAWN_MARGIN) continue;
+                    if (ny < SPAWN_MARGIN || ny > ROOM_PIXEL_H - SPAWN_MARGIN) continue;
+                    if (isWalkable((int)nx + 8, (int)ny + 8)) {
+                        return new double[]{nx, ny};
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     public boolean isWalkable(int pixelX, int pixelY) {
@@ -196,10 +284,12 @@ public class ZeldaRoom {
     }
 
     public int getCaveTileX() {
+        if (detectedEntranceTileX >= 0) return detectedEntranceTileX;
         return roomDef != null ? roomDef.caveTileX : -1;
     }
 
     public int getCaveTileY() {
+        if (detectedEntranceTileY >= 0) return detectedEntranceTileY;
         return roomDef != null ? roomDef.caveTileY : -1;
     }
 
@@ -209,5 +299,15 @@ public class ZeldaRoom {
 
     public int getDungeonId() {
         return roomDef != null ? roomDef.dungeonId : -1;
+    }
+
+    public int getDungeonEntranceTileX() {
+        if (detectedEntranceTileX >= 0) return detectedEntranceTileX;
+        return 7; // default
+    }
+
+    public int getDungeonEntranceTileY() {
+        if (detectedEntranceTileY >= 0) return detectedEntranceTileY;
+        return 3; // default
     }
 }

@@ -48,51 +48,78 @@ public class CaveData {
     public static CaveDef getCave(int roomX, int roomY) {
         String key = roomX + "," + roomY;
         switch (key) {
-            // === Starting sword cave (7,7) ===
-            case "7,7":
+
+            // ==================== Sword Caves ====================
+            case "7,7":  // Wooden Sword (starting screen)
                 return new CaveDef(CaveType.ITEM_CAVE,
                     "IT'S DANGEROUS TO GO",
                     "ALONE! TAKE THIS.",
                     new String[]{"WOODEN_SWORD"}, new int[]{0}, 0);
 
-            // === White Sword cave (5,2) — requires 5 hearts ===
-            case "5,2":
+            case "2,1":  // White Sword (requires 5+ hearts)
                 return new CaveDef(CaveType.WHITE_SWORD,
                     "MASTER USING IT AND",
                     "YOU CAN HAVE THIS.",
                     new String[]{"WHITE_SWORD"}, new int[]{0}, 5);
 
-            // === Magical Sword cave (0,0) — requires 12 hearts ===
-            case "0,0":
+            case "12,0": // Magical Sword (requires 12+ hearts, push grave)
                 return new CaveDef(CaveType.MAGICAL_SWORD,
                     "MASTER USING IT AND",
                     "YOU CAN HAVE THIS.",
                     new String[]{"MAGICAL_SWORD"}, new int[]{0}, 12);
 
-            // === Blue Ring shop (5,5) ===
-            case "5,5":
+            // ==================== Shop Type A (Shield, Key, Candle) ====================
+            case "1,1":  // Mountain shop
+            case "0,2":  // Lake area shop
+            case "7,6":  // Plains shop
                 return new CaveDef(CaveType.SHOP,
                     "BUY SOMETHIN' WILL YA!",
                     "",
-                    new String[]{"BLUE_RING", "KEY", "SHIELD"},
-                    new int[]{250, 80, 130}, 0);
+                    new String[]{"SHIELD", "KEY", "BLUE_CANDLE"},
+                    new int[]{160, 100, 60}, 0);
 
-            // === Candle shop (7,3) ===
-            case "7,3":
+            // ==================== Shop Type B (Bombs, Arrow, Candle) ====================
+            case "9,1":  // Mountain shop
+            case "12,7": // Starting area shop
+            case "10,6": // Plains shop
                 return new CaveDef(CaveType.SHOP,
                     "BUY SOMETHIN' WILL YA!",
                     "",
-                    new String[]{"BLUE_CANDLE", "BOMB", "ARROW"},
-                    new int[]{60, 20, 80}, 0);
+                    new String[]{"BOMB", "ARROW", "BLUE_CANDLE"},
+                    new int[]{20, 80, 60}, 0);
 
-            // === Letter cave (2,2) ===
-            case "2,2":
+            // ==================== Shop Type C (Blue Ring, Food, Key) ====================
+            case "5,5":  // Blue Ring shop
+                return new CaveDef(CaveType.SHOP,
+                    "BUY SOMETHIN' WILL YA!",
+                    "",
+                    new String[]{"BLUE_RING", "FOOD", "KEY"},
+                    new int[]{250, 100, 80}, 0);
+
+            // ==================== Shop Type D (Food, Bombs, Key) ====================
+            case "6,4":  // Forest shop
+                return new CaveDef(CaveType.SHOP,
+                    "BUY SOMETHIN' WILL YA!",
+                    "",
+                    new String[]{"FOOD", "BOMB", "KEY"},
+                    new int[]{100, 20, 80}, 0);
+
+            // ==================== Letter Cave ====================
+            case "3,2":
                 return new CaveDef(CaveType.ITEM_CAVE,
                     "TAKE THIS TO THE OLD",
                     "WOMAN.",
                     new String[]{"LETTER"}, new int[]{0}, 0);
 
-            // === Heart Container caves ===
+            // ==================== Potion Shop (requires Letter) ====================
+            case "3,7":
+                return new CaveDef(CaveType.POTION_SHOP,
+                    "BUY SOMETHIN' WILL YA!",
+                    "",
+                    new String[]{"BLUE_POTION", "RED_POTION"},
+                    new int[]{40, 68}, 0);
+
+            // ==================== Take Any (Heart Container) Caves ====================
             case "12,4":
                 return new CaveDef(CaveType.HEART_CONTAINER,
                     "TAKE ANY ROAD YOU",
@@ -100,30 +127,14 @@ public class CaveData {
                     new String[]{"HEART_CONTAINER", "SECOND_POTION"},
                     new int[]{0, 68}, 0);
 
-            case "10,1":
+            case "8,2":
                 return new CaveDef(CaveType.HEART_CONTAINER,
                     "TAKE ANY ROAD YOU",
                     "WANT.",
                     new String[]{"HEART_CONTAINER", "RED_POTION"},
                     new int[]{0, 68}, 0);
 
-            // === Potion shop (3,3) — requires Letter ===
-            case "3,3":
-                return new CaveDef(CaveType.POTION_SHOP,
-                    "BUY SOMETHIN' WILL YA!",
-                    "",
-                    new String[]{"BLUE_POTION", "RED_POTION"},
-                    new int[]{40, 68}, 0);
-
-            // === Bomb upgrade (9,1) ===
-            case "9,1":
-                return new CaveDef(CaveType.SHOP,
-                    "BUY SOMETHIN' WILL YA!",
-                    "",
-                    new String[]{"BOMB", "KEY", "BLUE_CANDLE"},
-                    new int[]{20, 100, 60}, 0);
-
-            // === Money making game (4,6) ===
+            // ==================== Money Making Game ====================
             case "4,6":
                 return new CaveDef(CaveType.MONEY_MAKING_GAME,
                     "LET'S PLAY MONEY",
@@ -131,55 +142,61 @@ public class CaveData {
                     new String[]{"-10", "-40", "50"},
                     new int[]{0, 0, 0}, 0);
 
-            // === Hint caves ===
-            case "1,4":
-                return new CaveDef(CaveType.HINT,
-                    "EASTMOST PENINSULA",
-                    "IS THE SECRET.",
-                    new String[0], new int[0], 0);
-
-            case "8,6":
-                return new CaveDef(CaveType.HINT,
-                    "DODONGO DISLIKES",
-                    "SMOKE.",
-                    new String[0], new int[0], 0);
-
-            case "11,3":
-                return new CaveDef(CaveType.HINT,
-                    "DID YOU GET THE SWORD",
-                    "FROM THE OLD MAN?",
-                    new String[0], new int[0], 0);
-
-            case "6,1":
-                return new CaveDef(CaveType.HINT,
-                    "SECRET IS IN THE TREE",
-                    "AT THE DEAD-END.",
-                    new String[0], new int[0], 0);
-
-            case "13,5":
-                return new CaveDef(CaveType.HINT,
-                    "THERE ARE SECRETS",
-                    "WHERE FAIRIES DON'T LIVE.",
-                    new String[0], new int[0], 0);
-
-            // === Arrow shop (12,7) ===
-            case "12,7":
-                return new CaveDef(CaveType.SHOP,
-                    "BUY SOMETHIN' WILL YA!",
+            // ==================== Fairy Fountains ====================
+            case "7,2":  // Lake fairy
+            case "11,2": // East fairy
+            case "3,5":  // West fairy (pond)
+            case "6,5":  // Central fairy
+            case "15,3": // Peninsula fairy
+                return new CaveDef(CaveType.ITEM_CAVE,
                     "",
-                    new String[]{"ARROW", "BOMB", "BLUE_CANDLE"},
-                    new int[]{80, 20, 60}, 0);
-
-            // === Food/Bait shop (6,4) ===
-            case "6,4":
-                return new CaveDef(CaveType.SHOP,
-                    "BUY SOMETHIN' WILL YA!",
                     "",
-                    new String[]{"FOOD", "BOMB", "KEY"},
-                    new int[]{100, 20, 80}, 0);
+                    new String[0], new int[0], 0);
+
+            // ==================== Door Repair Charge ====================
+            case "14,1":
+                return new CaveDef(CaveType.SHOP,
+                    "PAY ME FOR THE DOOR",
+                    "REPAIR CHARGE.",
+                    new String[]{"-20"},
+                    new int[]{0}, 0);
+
+            // ==================== Hint Caves ====================
+            case "1,4":  // Peninsula hint
+                return hint("EASTMOST PENINSULA", "IS THE SECRET.");
+
+            case "8,6":  // Dodongo hint
+                return hint("DODONGO DISLIKES", "SMOKE.");
+
+            case "11,3": // Sword hint
+                return hint("DID YOU GET THE SWORD", "FROM THE OLD MAN?");
+
+            case "6,1":  // Tree hint
+                return hint("SECRET IS IN THE TREE", "AT THE DEAD-END.");
+
+            case "13,5": // Fairy hint
+                return hint("THERE ARE SECRETS", "WHERE FAIRIES DON'T LIVE.");
+
+            case "3,0":  // Triforce hint (Death Mountain)
+                return hint("ONES WHO DOES NOT HAVE", "TRIFORCE CAN'T GO IN.");
+
+            case "0,6":  // Grave hint
+                return hint("MEET THE OLD MAN", "AT THE GRAVE.");
+
+            case "15,7": // Spectacle Rock hint
+                return hint("SPECTACLE ROCK IS AN", "ENTRANCE TO DEATH MTN.");
+
+            case "8,4":  // Forest maze hint
+                return hint("GO NORTH,WEST,SOUTH,", "WEST TO THE FOREST.");
 
             default:
                 return null;
         }
+    }
+
+    /** Helper to create hint caves. */
+    private static CaveDef hint(String line1, String line2) {
+        return new CaveDef(CaveType.HINT, line1, line2,
+            new String[0], new int[0], 0);
     }
 }

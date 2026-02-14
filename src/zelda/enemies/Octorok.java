@@ -1,14 +1,12 @@
 package zelda.enemies;
 
-import zelda.*;
 import java.awt.*;
+import java.io.File;
 import java.util.List;
 import javax.swing.ImageIcon;
-import java.io.File;
+import zelda.*;
 
 public class Octorok extends ZeldaEnemy {
-    private static final double BLUE_SPEED = 1.0;
-    private static final double RED_SPEED = 0.6;
     private static final int SHOOT_RANGE = 80;
     private static final int SHOOT_COOLDOWN = 90;
     private static final double PROJECTILE_SPEED = 2.0;
@@ -19,9 +17,9 @@ public class Octorok extends ZeldaEnemy {
     private Image leftSprite;
 
     public Octorok(double x, double y, boolean red) {
-        super(x, y, red ? 2 : 1, AIType.SHOOTER);
+        super(x, y, 1, AIType.SHOOTER);
         this.isRed = red;
-        this.speed = red ? RED_SPEED : BLUE_SPEED;
+        applyStats(red ? EnemyStats.octorokRed() : EnemyStats.octorokBlue());
         loadOctorokSprites();
     }
 

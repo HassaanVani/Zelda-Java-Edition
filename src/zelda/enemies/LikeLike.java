@@ -1,18 +1,21 @@
 package zelda.enemies;
 
-import zelda.*;
 import java.awt.*;
 import java.util.List;
+import zelda.*;
 
 /**
  * Like Like: blob enemy that eats Link's Magical Shield on contact.
  * Chases player slowly. 4 HP.
  */
 public class LikeLike extends ZeldaEnemy {
+    private boolean engulfing = false;
+    private int engulfTimer = 0;
+    private static final int ENGULF_DURATION = 60;
 
     public LikeLike(double x, double y) {
         super(x, y, 4, 1, AIType.CHASE);
-        this.speed = 0.4;
+        applyStats(EnemyStats.likeLike());
         sprite = loadSprite("sprites/Enemies/LikeLike.png");
     }
 
@@ -37,9 +40,21 @@ public class LikeLike extends ZeldaEnemy {
             if (room != null) randomMove(room);
         }
 
-        // Eat shield on contact
-        if (getHitbox().intersects(player.getHitbox()) && player.getInventory().hasMagicalShield()) {
-            player.getInventory().loseShield();
+        // Engulf mechanic: grab Link, count down, then steal shield
+        if (engulfing) {
+            engulfTimer++;
+            // Hold Link in place
+            player.setPosition(x, y);
+            if (engulfTimer >= ENGULF_DURATION) {
+                if (player.getInventory().hasMagicalShield()) {
+                    player.getInventory().loseShield();
+                }
+                engulfing = false;
+                engulfTimer = 0;
+            }
+        } else if (getHitbox().intersects(player.getHitbox()) && player.getInventory().hasMagicalShield()) {
+            engulfing = true;
+            engulfTimer = 0;
         }
 
         x = Math.max(8, Math.min(x, ZeldaRoom.ROOM_PIXEL_W - width - 8));
