@@ -5,17 +5,25 @@ import java.util.List;
 import zelda.*;
 
 /**
- * Wizzrobe: magic-casting enemy that teleports and shoots magic.
- * Blue: teleports, appears, shoots, disappears. 3 HP.
- * Red: walks through walls, shoots magic beams. 3 HP.
+ * Wizzrobe: magic-casting enemy.
+ * Blue Wizzrobe: Phases through walls. Appears, shoots unblockable magic beam, disappears. Immune to boomerang. 3 HP.
+ * Red Wizzrobe: Teleports randomly. Appears briefly to fire unblockable magic beam, vanishes instantly. 3 HP.
+ * Magic beams CANNOT be blocked by ANY shield (including Magical Shield).
  */
 public class Wizzrobe extends ZeldaEnemy {
     private boolean isBlue;
     private int phaseTimer = 0;
     private int shootCooldown = 0;
     private boolean visible = true;
-    private static final int PHASE_DURATION = 60;
-    private static final int SHOOT_INTERVAL = 80;
+
+    // Red Wizzrobe teleport timing
+    private static final int RED_VISIBLE_FRAMES = 30;
+    private static final int RED_INVISIBLE_FRAMES = 60;
+    private static final int RED_SHOOT_FRAME = 15; // shoots midway through visible phase
+
+    // Blue Wizzrobe phasing timing
+    private static final int BLUE_MOVE_FRAMES = 80;
+    private static final int BLUE_SHOOT_INTERVAL = 90;
 
     public Wizzrobe(double x, double y, boolean blue) {
         super(x, y, 3, 2, AIType.SHOOTER);
@@ -31,37 +39,24 @@ public class Wizzrobe extends ZeldaEnemy {
         if (invulnerableFrames > 0) invulnerableFrames--;
 
         if (isBlue) {
-            updateBlue(player, projectiles);
+            updateBlue(player, room, projectiles);
         } else {
-            updateRed(player, room, projectiles);
+            updateRed(player, projectiles);
         }
     }
 
-    private void updateBlue(ZeldaPlayer player, List<Projectile> projectiles) {
-        phaseTimer++;
-        if (phaseTimer < PHASE_DURATION / 2) {
-            visible = false;
-        } else if (phaseTimer < PHASE_DURATION) {
-            visible = true;
-            if (phaseTimer == PHASE_DURATION / 2 + 5) {
-                shootAtPlayer(player, projectiles);
-            }
-        } else {
-            // Teleport to new position
-            x = 32 + Math.random() * (ZeldaRoom.ROOM_PIXEL_W - 64);
-            y = 32 + Math.random() * (ZeldaRoom.ROOM_PIXEL_H - 64);
-            phaseTimer = 0;
-        }
-    }
-
-    private void updateRed(ZeldaPlayer player, ZeldaRoom room, List<Projectile> projectiles) {
-        // Red wizzrobe moves in straight lines, ignoring walls
+    /**
+     * Blue Wizzrobe: phases through walls, always visible while moving, shoots periodically.
+     */
+    private void updateBlue(ZeldaPlayer player, ZeldaRoom room, List<Projectile> projectiles) {
+        visible = true;
         moveTimer--;
         if (moveTimer <= 0) {
             direction = (int)(Math.random() * 4);
             moveTimer = 40 + (int)(Math.random() * 40);
         }
 
+        // Move through walls (ignore collision)
         switch (direction) {
             case 0: y -= speed; break;
             case 1: x -= speed; break;
@@ -77,22 +72,52 @@ public class Wizzrobe extends ZeldaEnemy {
 
         shootCooldown--;
         if (shootCooldown <= 0) {
-            shootAtPlayer(player, projectiles);
-            shootCooldown = SHOOT_INTERVAL;
+            shootMagicBeam(player, projectiles);
+            shootCooldown = BLUE_SHOOT_INTERVAL;
         }
     }
 
-    private void shootAtPlayer(ZeldaPlayer player, List<Projectile> projectiles) {
+    /**
+     * Red Wizzrobe: teleports randomly, appears briefly to fire, vanishes.
+     */
+    private void updateRed(ZeldaPlayer player, List<Projectile> projectiles) {
+        phaseTimer++;
+
+        if (phaseTimer < RED_INVISIBLE_FRAMES) {
+            // Invisible phase
+            visible = false;
+        } else if (phaseTimer < RED_INVISIBLE_FRAMES + RED_VISIBLE_FRAMES) {
+            // Visible phase — appear and shoot
+            visible = true;
+            if (phaseTimer == RED_INVISIBLE_FRAMES + RED_SHOOT_FRAME) {
+                shootMagicBeam(player, projectiles);
+            }
+        } else {
+            // Teleport to new random position and restart cycle
+            x = 32 + Math.random() * (ZeldaRoom.ROOM_PIXEL_W - 64);
+            y = 32 + Math.random() * (ZeldaRoom.ROOM_PIXEL_H - 64);
+            phaseTimer = 0;
+        }
+    }
+
+    /**
+     * Fires an unblockable magic beam toward Link.
+     * Red beams do 1 heart (2 half-hearts), Blue beams do 2 hearts (4 half-hearts).
+     */
+    private void shootMagicBeam(ZeldaPlayer player, List<Projectile> projectiles) {
         double dx = player.getWorldX() - x;
         double dy = player.getWorldY() - y;
         double dist = Math.sqrt(dx * dx + dy * dy);
         if (dist > 0) {
-            double spd = 2.0;
+            double spd = 2.5;
             Projectile magic = new Projectile(x + width / 2, y + height / 2,
                 (dx / dist) * spd, (dy / dist) * spd, false);
             magic.setColor(isBlue ? Color.CYAN : new Color(255, 100, 50));
             magic.setSize(6, 6);
-            magic.setDamage(2);
+            // Blue beam: 4 half-hearts (2 full hearts), Red beam: 2 half-hearts (1 full heart)
+            magic.setDamage(isBlue ? 4 : 2);
+            // Mark as unblockable (magic beams can't be shielded)
+            magic.setUnblockable(true);
             projectiles.add(magic);
         }
     }
@@ -102,7 +127,7 @@ public class Wizzrobe extends ZeldaEnemy {
 
     @Override
     public void damage(int amount) {
-        if (!visible && isBlue) return;
+        if (!visible) return; // Can't damage while invisible
         super.damage(amount);
     }
 

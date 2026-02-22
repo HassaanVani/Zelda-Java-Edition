@@ -207,6 +207,19 @@ public class ZeldaRoom {
             }
         }
 
+        // Render revealed secret entrance (stairway/cave opening)
+        if (secretRevealed && revealedSecret != null) {
+            int sx = revealedSecret.tileX * TILE_SIZE;
+            int sy = revealedSecret.tileY * TILE_SIZE;
+            // Dark stairway entrance
+            g2.setColor(Color.BLACK);
+            g2.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
+            // Step pattern
+            g2.setColor(new Color(80, 80, 80));
+            g2.fillRect(sx + 2, sy + 4, TILE_SIZE - 4, 3);
+            g2.fillRect(sx + 4, sy + 9, TILE_SIZE - 8, 3);
+        }
+
         for (Item item : items) item.render(g2);
         for (ZeldaEnemy e : enemies) e.render(g2);
         for (Projectile p : projectiles) p.render(g2);
@@ -309,5 +322,139 @@ public class ZeldaRoom {
     public int getDungeonEntranceTileY() {
         if (detectedEntranceTileY >= 0) return detectedEntranceTileY;
         return 3; // default
+    }
+
+    // ==================== Secret Trigger System ====================
+
+    private boolean secretRevealed = false;
+    private RoomData.RoomSecret revealedSecret = null;
+
+    /**
+     * Check if a bomb explosion triggers a BOMB_WALL secret.
+     * Called when a bomb explodes in this room.
+     */
+    public boolean checkBombSecret(double bombX, double bombY) {
+        if (secretRevealed || roomDef == null || roomDef.secrets == null) return false;
+        int bombTX = (int)(bombX / TILE_SIZE);
+        int bombTY = (int)(bombY / TILE_SIZE);
+        for (RoomData.RoomSecret s : roomDef.secrets) {
+            if (s.type == RoomData.SecretType.BOMB_WALL) {
+                if (Math.abs(bombTX - s.tileX) <= 2 && Math.abs(bombTY - s.tileY) <= 2) {
+                    secretRevealed = true;
+                    revealedSecret = s;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check if candle fire triggers a BURN_BUSH secret.
+     * Called when fire hits or stops at a position.
+     */
+    public boolean checkCandleSecret(double fireX, double fireY) {
+        if (secretRevealed || roomDef == null || roomDef.secrets == null) return false;
+        int fireTX = (int)(fireX / TILE_SIZE);
+        int fireTY = (int)(fireY / TILE_SIZE);
+        for (RoomData.RoomSecret s : roomDef.secrets) {
+            if (s.type == RoomData.SecretType.BURN_BUSH) {
+                if (Math.abs(fireTX - s.tileX) <= 1 && Math.abs(fireTY - s.tileY) <= 1) {
+                    secretRevealed = true;
+                    revealedSecret = s;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check if all enemies killed triggers a KILL_ALL secret.
+     * Called each frame once room is cleared. Also works for BOMB_WALL/BURN_BUSH
+     * gated behind enemy kills (the standard overworld KILL_ALL reveals an item or passage).
+     */
+    public boolean checkKillAllSecret() {
+        if (secretRevealed || roomDef == null || roomDef.secrets == null) return false;
+        if (!cleared) return false;
+        for (RoomData.RoomSecret s : roomDef.secrets) {
+            // Skip types that require specific interaction (push, bomb, burn, recorder)
+            if (s.type == RoomData.SecretType.PUSH_ROCK
+                || s.type == RoomData.SecretType.PUSH_GRAVE
+                || s.type == RoomData.SecretType.BOMB_WALL
+                || s.type == RoomData.SecretType.BURN_BUSH
+                || s.type == RoomData.SecretType.RECORDER
+                || s.type == RoomData.SecretType.RAFT_DOCK
+                || s.type == RoomData.SecretType.FAIRY_FOUNTAIN) {
+                continue;
+            }
+            // This is a kill-all triggered secret
+            secretRevealed = true;
+            revealedSecret = s;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Check if player pushing against a PUSH_ROCK or PUSH_GRAVE tile triggers a secret.
+     * @param px player world X
+     * @param py player world Y
+     * @param pushDir direction player is pushing (0=up, 1=left, 2=down, 3=right)
+     * @param hasBracelet true if player has Power Bracelet (needed for rocks)
+     */
+    public boolean checkPushSecret(double px, double py, int pushDir, boolean hasBracelet) {
+        if (secretRevealed || roomDef == null || roomDef.secrets == null) return false;
+        int ptx = (int)(px / TILE_SIZE);
+        int pty = (int)(py / TILE_SIZE);
+        for (RoomData.RoomSecret s : roomDef.secrets) {
+            if (s.type == RoomData.SecretType.PUSH_ROCK) {
+                if (!hasBracelet) continue; // Need Power Bracelet for rocks
+                // Check if player is adjacent to the secret tile and pushing toward it
+                if (isAdjacentPushing(ptx, pty, s.tileX, s.tileY, pushDir)) {
+                    secretRevealed = true;
+                    revealedSecret = s;
+                    return true;
+                }
+            } else if (s.type == RoomData.SecretType.PUSH_GRAVE) {
+                // Gravestones can be pushed without bracelet (in specific direction: up)
+                if (pushDir == 0 && isAdjacentPushing(ptx, pty, s.tileX, s.tileY, pushDir)) {
+                    secretRevealed = true;
+                    revealedSecret = s;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean isAdjacentPushing(int ptx, int pty, int stx, int sty, int pushDir) {
+        switch (pushDir) {
+            case 0: return ptx == stx && pty == sty + 1; // pushing up: player below target
+            case 1: return pty == sty && ptx == stx + 1; // pushing left: player right of target
+            case 2: return ptx == stx && pty == sty - 1; // pushing down: player above target
+            case 3: return pty == sty && ptx == stx - 1; // pushing right: player left of target
+        }
+        return false;
+    }
+
+    public boolean isSecretRevealed() { return secretRevealed; }
+    public RoomData.RoomSecret getRevealedSecret() { return revealedSecret; }
+
+    /**
+     * Check if a fairy fountain is at the player's position.
+     */
+    public boolean isAtFairyFountain(double px, double py) {
+        if (roomDef == null || roomDef.secrets == null) return false;
+        int ptx = (int)(px / TILE_SIZE);
+        int pty = (int)(py / TILE_SIZE);
+        for (RoomData.RoomSecret s : roomDef.secrets) {
+            if (s.type == RoomData.SecretType.FAIRY_FOUNTAIN) {
+                if (Math.abs(ptx - s.tileX) <= 1 && Math.abs(pty - s.tileY) <= 1) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

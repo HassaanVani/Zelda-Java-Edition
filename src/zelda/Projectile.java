@@ -23,14 +23,21 @@ public class Projectile {
     private int maxOutbound = 80; // ~5 tiles for wooden, full screen for magical
     private double returnSpeed = 3.0;
 
-    // Bomb phase behavior
+    // Bomb phase behavior (NES: $30, $18, $0C, $06 = 48, 24, 12, 6 frames)
     private boolean isBomb = false;
-    private int bombPhase = 0; // 0=placed, 1=flash, 2=explode
+    private int bombPhase = 0; // 0=fuse, 1=flash, 2=explode, 3=fade
     private int bombTimer = 0;
-    private static final int BOMB_FUSE = 40;
-    private static final int BOMB_FLASH = 10;
-    private static final int BOMB_EXPLODE = 15;
+    private static final int BOMB_FUSE = 48;    // $30
+    private static final int BOMB_FLASH = 24;   // $18
+    private static final int BOMB_EXPLODE = 12; // $0C
+    private static final int BOMB_FADE = 6;     // $06
     private int explosionRadius = 24;
+
+    // Candle fire: travels then becomes stationary flame
+    private boolean isCandleFire = false;
+    private int travelDistance = 0;
+    private static final int CANDLE_TRAVEL_DIST = 48;
+    private static final int STATIONARY_FLAME_LIFE = 60;
 
     public Projectile(double x, double y, double vx, double vy, boolean playerOwned) {
         this.x = x;
@@ -45,6 +52,17 @@ public class Projectile {
         if (isBomb) {
             updateBomb();
             return;
+        }
+
+        // Candle fire: travel then stop and become stationary flame
+        if (isCandleFire && !returning) {
+            travelDistance += (int) Math.sqrt(vx * vx + vy * vy);
+            if (travelDistance >= CANDLE_TRAVEL_DIST) {
+                vx = 0;
+                vy = 0;
+                lifetime = STATIONARY_FLAME_LIFE;
+                isCandleFire = false; // Now it's just a stationary flame
+            }
         }
 
         if (returning && returnTarget != null) {
@@ -83,13 +101,13 @@ public class Projectile {
     private void updateBomb() {
         bombTimer++;
         switch (bombPhase) {
-            case 0: // Fuse
+            case 0: // Fuse ($30 = 48 frames)
                 if (bombTimer >= BOMB_FUSE) {
                     bombPhase = 1;
                     bombTimer = 0;
                 }
                 break;
-            case 1: // Flash
+            case 1: // Flash ($18 = 24 frames)
                 if (bombTimer >= BOMB_FLASH) {
                     bombPhase = 2;
                     bombTimer = 0;
@@ -100,8 +118,14 @@ public class Projectile {
                     height = explosionRadius;
                 }
                 break;
-            case 2: // Explode
+            case 2: // Explode ($0C = 12 frames)
                 if (bombTimer >= BOMB_EXPLODE) {
+                    bombPhase = 3;
+                    bombTimer = 0;
+                }
+                break;
+            case 3: // Fade ($06 = 6 frames)
+                if (bombTimer >= BOMB_FADE) {
                     active = false;
                 }
                 break;
@@ -184,4 +208,18 @@ public class Projectile {
     private boolean leaveFire = false;
     public void setLeaveFire(boolean f) { this.leaveFire = f; }
     public boolean doesLeaveFire() { return leaveFire; }
+
+    // Candle fire
+    public void setCandleFire(boolean cf) { this.isCandleFire = cf; }
+    public boolean isCandleFire() { return isCandleFire; }
+
+    // Boomerang type flag (to prevent multiple active boomerangs)
+    private boolean boomerangType = false;
+    public void setBoomerangType(boolean b) { this.boomerangType = b; }
+    public boolean isBoomerangType() { return boomerangType; }
+
+    // Unblockable projectiles (Wizzrobe magic, statue fire) bypass all shields
+    private boolean unblockable = false;
+    public void setUnblockable(boolean u) { this.unblockable = u; }
+    public boolean isUnblockable() { return unblockable; }
 }

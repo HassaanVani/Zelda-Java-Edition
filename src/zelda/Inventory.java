@@ -77,6 +77,9 @@ public class Inventory {
     // --- Freeze timer (from CLOCK item) ---
     private int freezeTimer = 0;
 
+    // --- Visited dungeons (for recorder warp) ---
+    private boolean[] visitedDungeons = new boolean[9];
+
     // --- Second Quest flag ---
     private boolean secondQuest = false;
 
@@ -275,6 +278,10 @@ public class Inventory {
     public boolean isEnemiesFrozen() { return freezeTimer > 0; }
     public void tickFreezeTimer() { if (freezeTimer > 0) freezeTimer--; }
 
+    // ========== Visited Dungeons (for recorder warp) ==========
+    public boolean hasVisitedDungeon(int dungeon) { return dungeon >= 1 && dungeon <= 9 && visitedDungeons[dungeon - 1]; }
+    public void markDungeonVisited(int dungeon) { if (dungeon >= 1 && dungeon <= 9) visitedDungeons[dungeon - 1] = true; }
+
     // ========== Second Quest ==========
     public boolean isSecondQuest() { return secondQuest; }
     public void setSecondQuest(boolean b) { secondQuest = b; }
@@ -315,6 +322,7 @@ public class Inventory {
             props.setProperty("hasCompass_" + (i + 1), String.valueOf(hasCompass[i]));
             props.setProperty("hasBossKey_" + (i + 1), String.valueOf(hasBossKey[i]));
             props.setProperty("triforce_" + (i + 1), String.valueOf(triforce[i]));
+            props.setProperty("visitedDungeon_" + (i + 1), String.valueOf(visitedDungeons[i]));
         }
 
         // Cleared rooms (serialize as comma-separated)
@@ -361,6 +369,7 @@ public class Inventory {
             hasCompass[i] = Boolean.parseBoolean(props.getProperty("hasCompass_" + (i + 1), "false"));
             hasBossKey[i] = Boolean.parseBoolean(props.getProperty("hasBossKey_" + (i + 1), "false"));
             triforce[i] = Boolean.parseBoolean(props.getProperty("triforce_" + (i + 1), "false"));
+            visitedDungeons[i] = Boolean.parseBoolean(props.getProperty("visitedDungeon_" + (i + 1), "false"));
         }
 
         clearedRooms.clear();

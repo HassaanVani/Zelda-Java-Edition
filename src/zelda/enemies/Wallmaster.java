@@ -7,6 +7,7 @@ import zelda.*;
 /**
  * Wallmaster: giant hand that emerges from walls and grabs Link,
  * sending him back to the dungeon entrance. 2 HP.
+ * NES-accurate: On grab, TELEPORT Link back to dungeon entrance (no heart damage).
  */
 public class Wallmaster extends ZeldaEnemy {
     private enum Phase { HIDDEN, EMERGING, ACTIVE, RETREATING }
@@ -17,11 +18,18 @@ public class Wallmaster extends ZeldaEnemy {
     private static final int ACTIVE_TIME = 120;
     private static final int HIDDEN_TIME = 90;
 
+    // Flag to signal that Link was grabbed (checked by ZeldaDungeon/ZeldaGame)
+    private boolean grabbedPlayer = false;
+
     public Wallmaster(double x, double y) {
-        super(x, y, 2, 1, AIType.CHASE);
+        super(x, y, 2, 0, AIType.CHASE); // 0 contact damage — grab teleports instead
         applyStats(EnemyStats.wallmaster());
+        this.damage = 0; // Override: Wallmaster does NOT deal heart damage
         sprite = loadSprite("sprites/Enemies/Wallmaster.png");
     }
+
+    public boolean hasGrabbedPlayer() { return grabbedPlayer; }
+    public void resetGrab() { grabbedPlayer = false; }
 
     @Override
     public void update(ZeldaPlayer player, ZeldaRoom room, List<Projectile> projectiles) {
@@ -66,6 +74,14 @@ public class Wallmaster extends ZeldaEnemy {
                     x += (dx / dist) * speed;
                     y += (dy / dist) * speed;
                 }
+
+                // Check for grab — touching Link = teleport to entrance
+                if (getHitbox().intersects(player.getHitbox())) {
+                    grabbedPlayer = true;
+                    phase = Phase.HIDDEN;
+                    phaseTimer = 0;
+                }
+
                 if (phaseTimer >= ACTIVE_TIME) {
                     phase = Phase.RETREATING;
                     phaseTimer = 0;
@@ -85,7 +101,7 @@ public class Wallmaster extends ZeldaEnemy {
     }
 
     @Override
-    public boolean canDamage() { return active && phase == Phase.ACTIVE; }
+    public boolean canDamage() { return false; } // Wallmaster doesn't deal normal contact damage
 
     @Override
     public void damage(int amount) {

@@ -19,8 +19,9 @@ public class SaveManager {
         public int roomY;
         public boolean hasSword;
         public long playTime;
+        public int deathCount;
         public Inventory inventory;
-        
+
         public SaveData() {
             inventory = new Inventory();
         }
@@ -84,6 +85,7 @@ public class SaveManager {
         props.setProperty("roomY", String.valueOf(data.roomY));
         props.setProperty("hasSword", String.valueOf(data.hasSword));
         props.setProperty("playTime", String.valueOf(data.playTime));
+        props.setProperty("deathCount", String.valueOf(data.deathCount));
         
         if (data.inventory != null) {
             data.inventory.saveToProperties(props);
@@ -119,7 +121,8 @@ public class SaveManager {
             data.roomY = Integer.parseInt(props.getProperty("roomY", "7"));
             data.hasSword = Boolean.parseBoolean(props.getProperty("hasSword", "false"));
             data.playTime = Long.parseLong(props.getProperty("playTime", "0"));
-            
+            data.deathCount = Integer.parseInt(props.getProperty("deathCount", "0"));
+
             data.inventory = new Inventory();
             data.inventory.loadFromProperties(props);
             
@@ -139,5 +142,18 @@ public class SaveManager {
     
     public boolean saveExists(int slot) {
         return new File(SAVE_DIR + "save" + slot + ".dat").exists();
+    }
+
+    public void incrementDeathCount(int slot) {
+        SaveData data = loadGame(slot);
+        if (data != null) {
+            data.deathCount++;
+            writeSaveFile(slot, data);
+        }
+    }
+
+    public int getDeathCount(int slot) {
+        SaveData data = loadGame(slot);
+        return data != null ? data.deathCount : 0;
     }
 }

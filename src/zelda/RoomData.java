@@ -42,7 +42,8 @@ public class RoomData {
         PUSH_GRAVE,     // push gravestone to reveal stairway
         RECORDER,       // play recorder to reveal stairway
         RAFT_DOCK,      // raft departure point
-        FAIRY_FOUNTAIN  // fairy healing area
+        FAIRY_FOUNTAIN, // fairy healing area
+        KILL_ALL        // killing all enemies reveals item/passage
     }
 
     /** Complete definition of one overworld room. */

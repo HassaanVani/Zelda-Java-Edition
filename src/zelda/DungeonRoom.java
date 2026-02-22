@@ -10,7 +10,7 @@ public class DungeonRoom {
     public static final int DOOR_SOUTH = 2;
     public static final int DOOR_EAST = 3;
 
-    public enum DoorState { NONE, OPEN, LOCKED, BOSS_LOCKED, BOMBABLE, BOMBED }
+    public enum DoorState { NONE, OPEN, LOCKED, BOSS_LOCKED, BOMBABLE, BOMBED, SHUTTER }
 
     private int localX, localY;
     private int mapCol, mapRow;
@@ -34,8 +34,17 @@ public class DungeonRoom {
     private boolean blockPushed = false;
     private double blockX = ZeldaRoom.ROOM_PIXEL_W / 2.0 - 8;
     private double blockY = ZeldaRoom.ROOM_PIXEL_H / 2.0 - 8;
+    private double blockOrigX = blockX;
+    private double blockOrigY = blockY;
+    private int blockPushDir = -1; // -1=any, 0=N, 1=W, 2=S, 3=E
     private static final int BLOCK_SIZE = 16;
     private int dungeonNumber = 1;
+
+    // Stairway support
+    private boolean hasStairway = false;
+    private boolean stairwayRevealed = false;
+    private int stairTargetX = -1;
+    private int stairTargetY = -1;
 
     private DungeonRenderer renderer;
     private CollisionMap collisionMap;
@@ -58,6 +67,11 @@ public class DungeonRoom {
 
     public boolean canPass(int doorPosition) {
         DoorState ds = doors[doorPosition];
+        if (ds == DoorState.SHUTTER) {
+            // SHUTTER doors: passable before room is visited, or after room is cleared.
+            // Between entry and clear, player is trapped.
+            return !visited || cleared;
+        }
         return ds == DoorState.OPEN || ds == DoorState.BOMBED;
     }
 
@@ -143,8 +157,14 @@ public class DungeonRoom {
             case "Dodongo":     enemies.add(new zelda.bosses.Dodongo(bx, by)); break;
             case "Manhandla":   enemies.add(new zelda.bosses.Manhandla(bx, by)); break;
             case "Gleeok":      enemies.add(new zelda.bosses.Gleeok(bx, by)); break;
+            case "Gleeok2":     enemies.add(new zelda.bosses.Gleeok(bx, by, 2)); break;
+            case "Gleeok3":     enemies.add(new zelda.bosses.Gleeok(bx, by, 3)); break;
+            case "Gleeok4":     enemies.add(new zelda.bosses.Gleeok(bx, by, 4)); break;
             case "Digdogger":   enemies.add(new zelda.bosses.Digdogger(bx, by)); break;
             case "Gohma":       enemies.add(new zelda.bosses.Gohma(bx, by)); break;
+            case "GohmaRed":    enemies.add(new zelda.bosses.Gohma(bx, by, false)); break;
+            case "GohmaBlue":   enemies.add(new zelda.bosses.Gohma(bx, by, true)); break;
+            case "Patra":       enemies.add(new zelda.bosses.Patra(bx, by)); break;
             case "Ganon":       enemies.add(new zelda.bosses.Ganon(bx, by)); break;
             default:            enemies.add(new zelda.bosses.Aquamentus(bx, by)); break;
         }
@@ -212,30 +232,38 @@ public class DungeonRoom {
 
         if (!playerBox.intersects(blockBox)) return;
 
-        // Determine push direction based on player position
+        // Determine push direction based on player position relative to block
         double dx = (blockX + BLOCK_SIZE / 2.0) - (player.getWorldX() + ZeldaPlayer.WIDTH / 2.0);
         double dy = (blockY + BLOCK_SIZE / 2.0) - (player.getWorldY() + ZeldaPlayer.HEIGHT / 2.0);
 
+        int pushDir;
         if (Math.abs(dx) > Math.abs(dy)) {
-            blockX += (dx > 0) ? BLOCK_SIZE : -BLOCK_SIZE;
+            pushDir = (dx > 0) ? 3 : 1; // pushing east or west
         } else {
-            blockY += (dy > 0) ? BLOCK_SIZE : -BLOCK_SIZE;
+            pushDir = (dy > 0) ? 2 : 0; // pushing south or north
+        }
+
+        // Only allow push in specified direction (-1 = any direction)
+        if (blockPushDir >= 0 && pushDir != blockPushDir) return;
+
+        switch (pushDir) {
+            case 0: blockY -= BLOCK_SIZE; break;
+            case 1: blockX -= BLOCK_SIZE; break;
+            case 2: blockY += BLOCK_SIZE; break;
+            case 3: blockX += BLOCK_SIZE; break;
         }
         blockPushed = true;
 
-        // Opening a bombable/locked passage on push
-        for (int i = 0; i < 4; i++) {
-            if (doors[i] == DoorState.BOMBABLE) {
-                doors[i] = DoorState.OPEN;
-                break;
-            }
+        // Reveal stairway if room has one
+        if (hasStairway) {
+            stairwayRevealed = true;
         }
     }
 
     private void onRoomCleared() {
-        // Open shut doors on room clear
+        // Open SHUTTER doors on room clear (not LOCKED — those require keys)
         for (int i = 0; i < 4; i++) {
-            if (doors[i] == DoorState.LOCKED) doors[i] = DoorState.OPEN;
+            if (doors[i] == DoorState.SHUTTER) doors[i] = DoorState.OPEN;
         }
         // Boss room: drop heart container
         if (bossType != null) {
@@ -257,6 +285,18 @@ public class DungeonRoom {
         for (Projectile p : projectiles) p.render(g2);
 
         renderDoors(g2);
+
+        // Stairway (revealed after block push)
+        if (hasStairway && stairwayRevealed) {
+            g2.setColor(new Color(20, 20, 20));
+            g2.fillRect((int)blockOrigX, (int)blockOrigY, BLOCK_SIZE, BLOCK_SIZE);
+            g2.setColor(new Color(60, 60, 60));
+            // Draw stairway steps
+            for (int i = 0; i < 4; i++) {
+                int sy = (int)blockOrigY + i * 4;
+                g2.fillRect((int)blockOrigX + i * 2, sy, BLOCK_SIZE - i * 4, 2);
+            }
+        }
 
         // Push block (uses dungeon palette)
         if (hasBlock) {
@@ -347,6 +387,15 @@ public class DungeonRoom {
                 g2.setColor(wallColor);
                 g2.fillRect(x, y, w, h);
                 break;
+            case SHUTTER:
+                // Closed shutter — solid wall with bar pattern
+                g2.setColor(wallColor);
+                g2.fillRect(x, y, w, h);
+                g2.setColor(NESPalette.darken(wallColor, 0.6f));
+                for (int i = 0; i < 4; i++) {
+                    g2.fillRect(x + 2, y + 4 + i * 7, w - 4, 3);
+                }
+                break;
             case NONE:
                 break;
             default:
@@ -370,8 +419,29 @@ public class DungeonRoom {
     public void setBossType(String type) { this.bossType = type; }
     public void setDark(boolean dark) { this.isDark = dark; }
     public void setHasBlock(boolean block) { this.hasBlock = block; }
+    public void setBlockPushDir(int dir) { this.blockPushDir = dir; }
+    public void setBlockPosition(double bx, double by) {
+        this.blockX = bx; this.blockY = by;
+        this.blockOrigX = bx; this.blockOrigY = by;
+    }
+    public void setStairway(boolean has, int targetX, int targetY) {
+        this.hasStairway = has;
+        this.stairTargetX = targetX;
+        this.stairTargetY = targetY;
+    }
     public void setDungeonNumber(int num) { this.dungeonNumber = num; }
     public boolean hasZeldaItem() { return hasItem && roomItem == Item.ItemType.ZELDA; }
+
+    // Stairway access
+    public boolean isOnStairway(ZeldaPlayer player) {
+        if (!hasStairway || !stairwayRevealed) return false;
+        Rectangle stairBox = new Rectangle((int)blockOrigX, (int)blockOrigY, BLOCK_SIZE, BLOCK_SIZE);
+        return stairBox.intersects(player.getHitbox());
+    }
+    public boolean hasStairway() { return hasStairway; }
+    public boolean isStairwayRevealed() { return stairwayRevealed; }
+    public int getStairTargetX() { return stairTargetX; }
+    public int getStairTargetY() { return stairTargetY; }
 
     private void applyDungeonItem(Item item, ZeldaPlayer player) {
         Inventory inv = player.getInventory();

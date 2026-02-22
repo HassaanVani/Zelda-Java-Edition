@@ -5,14 +5,17 @@ import java.util.List;
 import zelda.*;
 
 /**
- * Rope: snake enemy that charges at the player when aligned horizontally.
- * 1 HP, fast charge speed.
+ * Rope: snake enemy that charges at the player when aligned horizontally OR vertically.
+ * NES-accurate: wanders slowly, then charges at ~3x speed when axis-aligned with Link.
+ * 1 HP, 1/2 heart contact.
  */
 public class Rope extends ZeldaEnemy {
     private boolean charging = false;
-    private int chargeDir = 3; // 1=left, 3=right
-    private static final double CHARGE_SPEED = 2.5;
+    private int chargeDir = 3; // 0=up, 1=left, 2=down, 3=right
+    private static final double CHARGE_SPEED = 3.0;
     private static final double NORMAL_SPEED = 0.5;
+    private static final int ALIGN_THRESHOLD = 8;
+    private static final int CHARGE_RANGE = 96;
 
     public Rope(double x, double y) {
         super(x, y, 1, 1, AIType.CHASE);
@@ -29,19 +32,38 @@ public class Rope extends ZeldaEnemy {
         double dy = player.getWorldY() - y;
         double dx = player.getWorldX() - x;
 
-        if (!charging && Math.abs(dy) < 8 && Math.abs(dx) < 80) {
-            charging = true;
-            chargeDir = dx > 0 ? 3 : 1;
+        if (!charging) {
+            // Check horizontal alignment (same row) — charge left/right
+            if (Math.abs(dy) < ALIGN_THRESHOLD && Math.abs(dx) < CHARGE_RANGE && Math.abs(dx) > 4) {
+                charging = true;
+                chargeDir = dx > 0 ? 3 : 1;
+            }
+            // Check vertical alignment (same column) — charge up/down
+            else if (Math.abs(dx) < ALIGN_THRESHOLD && Math.abs(dy) < CHARGE_RANGE && Math.abs(dy) > 4) {
+                charging = true;
+                chargeDir = dy > 0 ? 2 : 0;
+            }
         }
 
         if (charging) {
-            double nx = (chargeDir == 3) ? x + CHARGE_SPEED : x - CHARGE_SPEED;
-            if (room != null && room.isWalkable((int)(nx + width / 2), (int)(y + height / 2))) {
+            double nx = x, ny = y;
+            switch (chargeDir) {
+                case 0: ny -= CHARGE_SPEED; break;
+                case 1: nx -= CHARGE_SPEED; break;
+                case 2: ny += CHARGE_SPEED; break;
+                case 3: nx += CHARGE_SPEED; break;
+            }
+            if (room != null && room.isWalkable((int)(nx + width / 2), (int)(ny + height / 2))) {
                 x = nx;
+                y = ny;
             } else {
                 charging = false;
             }
-            if (x < 4 || x > ZeldaRoom.ROOM_PIXEL_W - width - 4) charging = false;
+            // Stop charging at room edges
+            if (x < 4 || x > ZeldaRoom.ROOM_PIXEL_W - width - 4
+                || y < 4 || y > ZeldaRoom.ROOM_PIXEL_H - height - 4) {
+                charging = false;
+            }
         } else {
             if (room != null) randomMove(room);
         }

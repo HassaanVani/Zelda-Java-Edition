@@ -73,6 +73,12 @@ public class CombatManager {
                             break;
                         }
                         int dmg = p.getDamage();
+                        // Boomerang kills Keese and Gels instantly (0 damage becomes lethal)
+                        if (weaponType == EnemyStats.DMG_BOOMERANG) {
+                            if (e instanceof zelda.enemies.Keese || e instanceof zelda.enemies.Gel) {
+                                dmg = e.getHealth();
+                            }
+                        }
                         // Pols Voice: instant kill by arrow
                         if (e instanceof zelda.enemies.PolsVoice && weaponType == EnemyStats.DMG_ARROW) {
                             dmg = e.getHealth();
@@ -112,7 +118,8 @@ public class CombatManager {
         for (Projectile p : projectiles) {
             if (p.isActive() && !p.isPlayerProjectile()) {
                 if (p.getHitbox().intersects(player.getHitbox())) {
-                    if (canShieldDeflect(player, p)) {
+                    // Unblockable projectiles (Wizzrobe magic, statue fire) bypass shields
+                    if (!p.isUnblockable() && canShieldDeflect(player, p)) {
                         p.deactivate();
                     } else {
                         player.takeDamage(p.getDamage(), p.getX(), p.getY());

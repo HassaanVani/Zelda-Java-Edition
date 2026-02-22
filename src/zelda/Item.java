@@ -31,6 +31,7 @@ public class Item {
         RED_CANDLE(0, 0, 0, 0),
         MAGICAL_KEY(0, 0, 0, 0),
         SILVER_ARROW(0, 0, 0, 0),
+        BOOK(0, 0, 0, 0),
         ZELDA(0, 0, 0, 0);
 
         public final int healAmount;
@@ -93,6 +94,7 @@ public class Item {
             case RED_CANDLE: filename = "Red Candle.gif"; break;
             case MAGICAL_KEY: filename = "Magical Key.gif"; break;
             case SILVER_ARROW: filename = "Silver Arrow.gif"; break;
+            case BOOK: filename = "Book of Magic.gif"; break;
             case ZELDA: filename = "Zelda.gif"; break;
         }
 
@@ -183,6 +185,9 @@ public class Item {
             case SILVER_ARROW:
                 inv.setArrowLevel(2);
                 if (!inv.hasBow()) inv.setHasBow(true);
+                break;
+            case BOOK:
+                inv.setHasBook(true);
                 break;
             default:
                 break;

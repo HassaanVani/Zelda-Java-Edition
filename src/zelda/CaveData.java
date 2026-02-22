@@ -194,6 +194,97 @@ public class CaveData {
         }
     }
 
+    /**
+     * Returns a cave definition by its numeric ID (RoomData.CAVE_* constants).
+     * Used when secrets (bomb walls, burn bushes, push rocks) reveal hidden caves.
+     */
+    public static CaveDef getCaveById(int caveId) {
+        switch (caveId) {
+            case RoomData.CAVE_SWORD:
+                return new CaveDef(CaveType.ITEM_CAVE,
+                    "IT'S DANGEROUS TO GO", "ALONE! TAKE THIS.",
+                    new String[]{"WOODEN_SWORD"}, new int[]{0}, 0);
+            case RoomData.CAVE_SHOP_A1: case RoomData.CAVE_SHOP_A2: case RoomData.CAVE_SHOP_A3:
+                return new CaveDef(CaveType.SHOP,
+                    "BUY SOMETHIN' WILL YA!", "",
+                    new String[]{"SHIELD", "KEY", "BLUE_CANDLE"},
+                    new int[]{160, 100, 60}, 0);
+            case RoomData.CAVE_SHOP_B1: case RoomData.CAVE_SHOP_B2: case RoomData.CAVE_SHOP_B3:
+                return new CaveDef(CaveType.SHOP,
+                    "BUY SOMETHIN' WILL YA!", "",
+                    new String[]{"BOMB", "ARROW", "BLUE_CANDLE"},
+                    new int[]{20, 80, 60}, 0);
+            case RoomData.CAVE_SHOP_C:
+                return new CaveDef(CaveType.SHOP,
+                    "BUY SOMETHIN' WILL YA!", "",
+                    new String[]{"BLUE_RING", "FOOD", "KEY"},
+                    new int[]{250, 100, 80}, 0);
+            case RoomData.CAVE_SHOP_D:
+                return new CaveDef(CaveType.SHOP,
+                    "BUY SOMETHIN' WILL YA!", "",
+                    new String[]{"FOOD", "BOMB", "KEY"},
+                    new int[]{100, 20, 80}, 0);
+            case RoomData.CAVE_WHITE_SWORD:
+                return new CaveDef(CaveType.WHITE_SWORD,
+                    "MASTER USING IT AND", "YOU CAN HAVE THIS.",
+                    new String[]{"WHITE_SWORD"}, new int[]{0}, 5);
+            case RoomData.CAVE_MAGICAL_SWORD:
+                return new CaveDef(CaveType.MAGICAL_SWORD,
+                    "MASTER USING IT AND", "YOU CAN HAVE THIS.",
+                    new String[]{"MAGICAL_SWORD"}, new int[]{0}, 12);
+            case RoomData.CAVE_POTION_SHOP:
+                return new CaveDef(CaveType.POTION_SHOP,
+                    "BUY SOMETHIN' WILL YA!", "",
+                    new String[]{"BLUE_POTION", "RED_POTION"},
+                    new int[]{40, 68}, 0);
+            case RoomData.CAVE_MONEY_GAME:
+                return new CaveDef(CaveType.MONEY_MAKING_GAME,
+                    "LET'S PLAY MONEY", "MAKING GAME.",
+                    new String[]{"-10", "-40", "50"}, new int[]{0, 0, 0}, 0);
+            case RoomData.CAVE_LETTER:
+                return new CaveDef(CaveType.ITEM_CAVE,
+                    "TAKE THIS TO THE OLD", "WOMAN.",
+                    new String[]{"LETTER"}, new int[]{0}, 0);
+            case RoomData.CAVE_DOOR_REPAIR:
+                return new CaveDef(CaveType.SHOP,
+                    "PAY ME FOR THE DOOR", "REPAIR CHARGE.",
+                    new String[]{"-20"}, new int[]{0}, 0);
+            case RoomData.CAVE_TAKE_ANY_1: case RoomData.CAVE_TAKE_ANY_2:
+                return new CaveDef(CaveType.HEART_CONTAINER,
+                    "TAKE ANY ROAD YOU", "WANT.",
+                    new String[]{"HEART_CONTAINER", "RED_POTION"},
+                    new int[]{0, 68}, 0);
+            case RoomData.CAVE_COAST_SECRET:
+                return new CaveDef(CaveType.ITEM_CAVE,
+                    "IT'S A SECRET TO", "EVERYBODY.",
+                    new String[]{"30"}, new int[]{0}, 0); // 30 rupees
+            case RoomData.CAVE_FAIRY_1: case RoomData.CAVE_FAIRY_2:
+            case RoomData.CAVE_FAIRY_3: case RoomData.CAVE_FAIRY_4:
+                return new CaveDef(CaveType.ITEM_CAVE, "", "",
+                    new String[0], new int[0], 0);
+            case RoomData.CAVE_HINT_PENINSULA:
+                return hint("EASTMOST PENINSULA", "IS THE SECRET.");
+            case RoomData.CAVE_HINT_DODONGO:
+                return hint("DODONGO DISLIKES", "SMOKE.");
+            case RoomData.CAVE_HINT_SWORD:
+                return hint("DID YOU GET THE SWORD", "FROM THE OLD MAN?");
+            case RoomData.CAVE_HINT_TREE:
+                return hint("SECRET IS IN THE TREE", "AT THE DEAD-END.");
+            case RoomData.CAVE_HINT_FAIRY:
+                return hint("THERE ARE SECRETS", "WHERE FAIRIES DON'T LIVE.");
+            case RoomData.CAVE_HINT_TRIFORCE:
+                return hint("ONES WHO DOES NOT HAVE", "TRIFORCE CAN'T GO IN.");
+            case RoomData.CAVE_HINT_GRAVE:
+                return hint("MEET THE OLD MAN", "AT THE GRAVE.");
+            case RoomData.CAVE_HINT_SPECTACLE:
+                return hint("SPECTACLE ROCK IS AN", "ENTRANCE TO DEATH MTN.");
+            case RoomData.CAVE_HINT_MAZE:
+                return hint("GO NORTH,WEST,SOUTH,", "WEST TO THE FOREST.");
+            default:
+                return null;
+        }
+    }
+
     /** Helper to create hint caves. */
     private static CaveDef hint(String line1, String line2) {
         return new CaveDef(CaveType.HINT, line1, line2,

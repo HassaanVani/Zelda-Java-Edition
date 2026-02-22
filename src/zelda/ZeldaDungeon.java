@@ -55,7 +55,8 @@ public class ZeldaDungeon {
             DungeonRoom.DoorState[] doorStates = {
                 DungeonRoom.DoorState.NONE, DungeonRoom.DoorState.OPEN,
                 DungeonRoom.DoorState.LOCKED, DungeonRoom.DoorState.BOSS_LOCKED,
-                DungeonRoom.DoorState.BOMBABLE, DungeonRoom.DoorState.BOMBED
+                DungeonRoom.DoorState.BOMBABLE, DungeonRoom.DoorState.BOMBED,
+                DungeonRoom.DoorState.SHUTTER
             };
             for (int d = 0; d < 4; d++) {
                 int doorVal = rd.doors[d];
@@ -77,7 +78,13 @@ public class ZeldaDungeon {
             room.setBossType(rd.bossType);
             room.setDark(rd.isDark);
             room.setHasBlock(rd.hasBlock);
+            room.setBlockPushDir(rd.blockPushDir);
             room.setDungeonNumber(dungeonNumber);
+
+            // Set stairway data
+            if (rd.isStairway) {
+                room.setStairway(true, rd.stairTargetX, rd.stairTargetY);
+            }
 
             if ("TRIFORCE".equals(rd.itemType)) {
                 triforceRoomX = rd.localX;
@@ -111,6 +118,7 @@ public class ZeldaDungeon {
             case "RED_CANDLE": return Item.ItemType.RED_CANDLE;
             case "MAGICAL_KEY": return Item.ItemType.MAGICAL_KEY;
             case "SILVER_ARROW": return Item.ItemType.SILVER_ARROW;
+            case "BOOK": return Item.ItemType.BOOK;
             case "ZELDA": return Item.ItemType.ZELDA;
             default: return null;
         }
@@ -171,6 +179,25 @@ public class ZeldaDungeon {
     public int getDungeonNumber() { return dungeonNumber; }
     public int getMapWidth() { return mapWidth; }
     public int getMapHeight() { return mapHeight; }
+
+    /**
+     * Check if player is on a stairway and handle transition.
+     * Returns true if a stairway transition occurred.
+     */
+    public boolean checkStairwayTransition(ZeldaPlayer player) {
+        if (currentRoom == null) return false;
+        if (currentRoom.isOnStairway(player)) {
+            int tx = currentRoom.getStairTargetX();
+            int ty = currentRoom.getStairTargetY();
+            if (tx >= 0 && ty >= 0 && hasRoom(tx, ty)) {
+                setCurrentRoom(tx, ty);
+                // Place player at center of destination room
+                player.setPosition(ZeldaRoom.ROOM_PIXEL_W / 2.0, ZeldaRoom.ROOM_PIXEL_H / 2.0);
+                return true;
+            }
+        }
+        return false;
+    }
 
     public void setItemDropSystem(ItemDropSystem ids) {
         for (DungeonRoom room : rooms.values()) {

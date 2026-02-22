@@ -2,32 +2,39 @@ package zelda.bosses;
 
 import zelda.*;
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Gleeok: multi-headed dragon boss. Each head shoots fireballs.
- * Detached heads become flying projectile-heads.
- * Dungeon 4 (2 heads), Dungeon 8 (4 heads). HP = heads * 4.
+ * Gleeok: multi-headed dragon boss.
+ * NES-accurate:
+ * - Multiple heads on necks, each head must be destroyed independently
+ * - Destroyed heads detach and become floating, invulnerable fireball shooters
+ * - Each head: ~10 HP (reduced per head for balance). Heads shoot fireballs.
+ * - Variants: 2-headed (D4), 3-headed (D6), 4-headed (D8)
+ * - 1 heart contact
  */
 public class Gleeok extends ZeldaEnemy {
     private int totalHeads;
     private int headsAlive;
     private int[] headHP;
-    private double[][] headOffset; // relative x,y offset from body per head
+    private double[][] headOffset;
     private double[] headAngle;
+    private List<DetachedHead> detachedHeads = new ArrayList<>();
     private int shootTimer = 0;
     private static final int SHOOT_INTERVAL = 80;
+    private static final int HEAD_HP_EACH = 4;
 
     public Gleeok(double x, double y) {
         this(x, y, 2);
     }
 
     public Gleeok(double x, double y, int heads) {
-        super(x, y, heads * 4, 2, AIType.SHOOTER);
+        super(x, y, heads * HEAD_HP_EACH, 2, AIType.SHOOTER);
         this.width = 24;
         this.height = 32;
         this.speed = 0.2;
-        this.damage = 2;
+        this.damage = 2; // 1 heart
         this.totalHeads = heads;
         this.headsAlive = heads;
         this.headHP = new int[heads];
@@ -35,7 +42,7 @@ public class Gleeok extends ZeldaEnemy {
         this.headAngle = new double[heads];
 
         for (int i = 0; i < heads; i++) {
-            headHP[i] = 4;
+            headHP[i] = HEAD_HP_EACH;
             headAngle[i] = (Math.PI * 2 / heads) * i;
             headOffset[i][0] = Math.cos(headAngle[i]) * 16;
             headOffset[i][1] = -12 + Math.sin(headAngle[i]) * 8;
@@ -83,6 +90,11 @@ public class Gleeok extends ZeldaEnemy {
             }
             shootTimer = SHOOT_INTERVAL;
         }
+
+        // Update detached heads (floating invulnerable fireball shooters)
+        for (DetachedHead dh : detachedHeads) {
+            dh.update(player, projectiles);
+        }
     }
 
     @Override
@@ -94,6 +106,10 @@ public class Gleeok extends ZeldaEnemy {
             if (headHP[i] > 0) {
                 headHP[i] -= amount;
                 if (headHP[i] <= 0) {
+                    // Head detached! Create floating invulnerable fireball shooter
+                    double hx = x + width / 2 + headOffset[i][0];
+                    double hy = y + headOffset[i][1];
+                    detachedHeads.add(new DetachedHead(hx, hy));
                     headsAlive--;
                 }
                 break;
@@ -114,7 +130,7 @@ public class Gleeok extends ZeldaEnemy {
 
         boolean flash = damageTimer > 0 && (damageTimer / 3) % 2 == 0;
 
-        // Draw necks and heads
+        // Draw necks and alive heads
         for (int i = 0; i < totalHeads; i++) {
             if (headHP[i] > 0) {
                 int hx = (int)(x + width / 2 + headOffset[i][0]);
@@ -139,11 +155,67 @@ public class Gleeok extends ZeldaEnemy {
             g2.fillRect((int)x, (int)y, width, height);
         }
 
+        // Draw detached floating heads
+        for (DetachedHead dh : detachedHeads) {
+            dh.render(g2);
+        }
+
         // Health bar
         g2.setColor(Color.BLACK);
         g2.fillRect((int)x, (int)y - 8, width, 4);
         g2.setColor(Color.RED);
-        int hw = (int)((double)health / maxHealth * width);
+        int hw = (int)((double)Math.max(0, health) / maxHealth * width);
         g2.fillRect((int)x, (int)y - 8, hw, 4);
+    }
+
+    /**
+     * Detached head: invulnerable floating fireball shooter.
+     * Bounces around room and periodically shoots at Link.
+     */
+    private static class DetachedHead {
+        double x, y, vx, vy;
+        int shootTimer = 60;
+        static final int SHOOT_INTERVAL = 90;
+
+        DetachedHead(double x, double y) {
+            this.x = x;
+            this.y = y;
+            this.vx = (Math.random() < 0.5 ? 1 : -1) * (0.5 + Math.random() * 0.5);
+            this.vy = (Math.random() < 0.5 ? 1 : -1) * (0.5 + Math.random() * 0.5);
+        }
+
+        void update(ZeldaPlayer player, List<Projectile> projectiles) {
+            x += vx;
+            y += vy;
+
+            if (x < 8 || x > ZeldaRoom.ROOM_PIXEL_W - 16) { vx = -vx; x = Math.max(8, Math.min(x, ZeldaRoom.ROOM_PIXEL_W - 16)); }
+            if (y < 8 || y > ZeldaRoom.ROOM_PIXEL_H - 16) { vy = -vy; y = Math.max(8, Math.min(y, ZeldaRoom.ROOM_PIXEL_H - 16)); }
+
+            shootTimer--;
+            if (shootTimer <= 0) {
+                double dx = player.getWorldX() - x;
+                double dy = player.getWorldY() - y;
+                double dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 0) {
+                    Projectile fb = new Projectile(x, y, (dx / dist) * 1.5, (dy / dist) * 1.5, false);
+                    fb.setColor(new Color(255, 140, 0));
+                    fb.setSize(6, 6);
+                    fb.setDamage(2);
+                    projectiles.add(fb);
+                }
+                shootTimer = SHOOT_INTERVAL;
+            }
+        }
+
+        void render(Graphics2D g2) {
+            // Ghostly detached head
+            Composite old = g2.getComposite();
+            g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.7f));
+            g2.setColor(new Color(140, 200, 80));
+            g2.fillOval((int)x - 4, (int)y - 4, 8, 8);
+            g2.setColor(Color.RED);
+            g2.fillRect((int)x - 1, (int)y - 1, 2, 2);
+            g2.setComposite(old);
+        }
     }
 }

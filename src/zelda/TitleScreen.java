@@ -101,7 +101,7 @@ public class TitleScreen {
             case TITLE: updateTitle(); break;
             case FILE_SELECT: updateFileSelect(); break;
             case NAME_ENTRY: updateNameEntry(); break;
-            case ELIMINATION: break;
+            case ELIMINATION: updateElimination(); break;
         }
     }
 
@@ -210,6 +210,34 @@ public class TitleScreen {
         }
     }
 
+    private int elimSlot = 0;
+
+    private void updateElimination() {
+        if (keyHandler.upPressed && keyReleased) {
+            elimSlot = (elimSlot - 1 + 3) % 3;
+            keyReleased = false;
+        }
+        if (keyHandler.downPressed && keyReleased) {
+            elimSlot = (elimSlot + 1) % 3;
+            keyReleased = false;
+        }
+        if (keyHandler.startPressed && keyReleased) {
+            if (saveSlots[elimSlot] != null) {
+                game.getSaveManager().deleteSave(elimSlot);
+                saveSlots[elimSlot] = null;
+            }
+            keyReleased = false;
+        }
+        if (keyHandler.escapePressed && keyReleased) {
+            state = ScreenState.FILE_SELECT;
+            keyReleased = false;
+        }
+        if (!keyHandler.upPressed && !keyHandler.downPressed &&
+            !keyHandler.startPressed && !keyHandler.escapePressed) {
+            keyReleased = true;
+        }
+    }
+
     // ======================== Rendering ========================
 
     public void render(Graphics2D g2) {
@@ -221,7 +249,7 @@ public class TitleScreen {
             case TITLE: renderTitle(g2); break;
             case FILE_SELECT: renderFileSelect(g2); break;
             case NAME_ENTRY: renderNameEntry(g2); break;
-            case ELIMINATION: renderFileSelect(g2); break;
+            case ELIMINATION: renderElimination(g2); break;
         }
     }
 
@@ -414,9 +442,33 @@ public class TitleScreen {
 
                 // Hearts display
                 int hearts = saveSlots[i].maxHealth / 2;
-                for (int h = 0; h < hearts; h++) {
+                for (int h = 0; h < Math.min(hearts, 10); h++) {
                     drawSmallHeart(g2, 140 + h * 10, y + 4);
                 }
+
+                // Death count (skull icon + number)
+                int deathCount = saveSlots[i].deathCount;
+                g2.setFont(new Font("Monospaced", Font.PLAIN, 7));
+                g2.setColor(NES_GRAY);
+                g2.drawString("x" + deathCount, 78, y + 22);
+
+                // Triforce count (small triangles)
+                if (saveSlots[i].inventory != null) {
+                    int triCount = saveSlots[i].inventory.getTriforceCount();
+                    for (int t = 0; t < 8; t++) {
+                        if (saveSlots[i].inventory.hasTriforce(t + 1)) {
+                            g2.setColor(NES_GOLD);
+                        } else {
+                            g2.setColor(new Color(40, 40, 40));
+                        }
+                        int tx = 140 + t * 12;
+                        int ty = y + 16;
+                        int[] triX = {tx + 4, tx, tx + 8};
+                        int[] triY = {ty, ty + 6, ty + 6};
+                        g2.fillPolygon(triX, triY, 3);
+                    }
+                }
+                g2.setFont(new Font("Monospaced", Font.BOLD, 8));
             } else {
                 g2.setColor(NES_GRAY);
                 g2.drawString("- EMPTY -", 64, y + 10);
@@ -438,6 +490,42 @@ public class TitleScreen {
         drawHeart(g2, 24, elimY + 2, selectedSlot == 4);
         g2.setColor(NES_RED);
         g2.drawString("ELIMINATION MODE", 44, elimY + 10);
+    }
+
+    private void renderElimination(Graphics2D g2) {
+        g2.setFont(new Font("Monospaced", Font.BOLD, 9));
+        g2.setColor(NES_RED);
+        centerText(g2, "- ELIMINATION MODE -", 28);
+        g2.setFont(new Font("Monospaced", Font.PLAIN, 7));
+        g2.setColor(NES_GRAY);
+        centerText(g2, "SELECT A FILE TO DELETE", 42);
+
+        g2.setFont(new Font("Monospaced", Font.BOLD, 8));
+        for (int i = 0; i < 3; i++) {
+            int y = 64 + i * 44;
+            boolean sel = (i == elimSlot);
+
+            // Skull cursor for elimination
+            if (sel) {
+                g2.setColor(NES_RED);
+                g2.drawString("X", 26, y + 10);
+            }
+
+            g2.setColor(NES_WHITE);
+            g2.drawString(String.valueOf(i + 1) + ".", 40, y + 10);
+
+            if (saveSlots[i] != null) {
+                g2.setColor(sel ? NES_RED : NES_WHITE);
+                g2.drawString(saveSlots[i].playerName, 64, y + 10);
+            } else {
+                g2.setColor(NES_GRAY);
+                g2.drawString("- EMPTY -", 64, y + 10);
+            }
+        }
+
+        g2.setFont(new Font("Monospaced", Font.PLAIN, 7));
+        g2.setColor(NES_GRAY);
+        centerText(g2, "ENTER=DELETE  ESC=BACK", 216);
     }
 
     private void renderNameEntry(Graphics2D g2) {

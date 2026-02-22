@@ -5,24 +5,28 @@ import java.awt.*;
 import java.util.List;
 
 /**
- * Manhandla: plant boss with 4 claws. Each claw shoots fireballs.
- * Destroying claws speeds it up. Weak to bombs. Dungeon 3 boss.
- * Total 8 HP (2 per claw). Speed increases as claws are destroyed.
+ * Manhandla: plant boss with 4 arm/pincer segments.
+ * NES-accurate:
+ * - Each arm shoots fireballs independently, can be destroyed individually (1 hit each)
+ * - Speed INCREASES each time an arm is destroyed (gets very fast with 1 arm left)
+ * - Well-placed bomb in center kills ALL arms instantly
+ * - 1/2 heart contact per arm
  */
 public class Manhandla extends ZeldaEnemy {
     private int clawsAlive = 4;
     private boolean[] clawActive = {true, true, true, true}; // N, W, S, E
-    private int[] clawHP = {2, 2, 2, 2};
     private int shootTimer = 0;
-    private static final int SHOOT_INTERVAL = 90;
+    private static final int SHOOT_INTERVAL_BASE = 90;
     private double vx, vy;
+    private static final double BASE_SPEED = 0.5;
+    private static final double SPEED_INCREASE_PER_ARM = 0.5; // Significant speed increase
 
     public Manhandla(double x, double y) {
-        super(x, y, 8, 2, AIType.RANDOM);
+        super(x, y, 4, 1, AIType.RANDOM); // 4 HP total (1 per arm)
         this.width = 24;
         this.height = 24;
-        this.speed = 0.5;
-        this.damage = 2;
+        this.speed = BASE_SPEED;
+        this.damage = 1; // 1/2 heart
         vx = speed;
         vy = speed;
         sprite = loadSprite("sprites/Bosses/3 - Manhandla.png");
@@ -34,8 +38,8 @@ public class Manhandla extends ZeldaEnemy {
         if (damageTimer > 0) damageTimer--;
         if (invulnerableFrames > 0) invulnerableFrames--;
 
-        // Movement — bounces off walls, gets faster with fewer claws
-        double currentSpeed = speed + (4 - clawsAlive) * 0.3;
+        // Speed increases as arms are destroyed
+        double currentSpeed = BASE_SPEED + (4 - clawsAlive) * SPEED_INCREASE_PER_ARM;
         double mag = Math.sqrt(vx * vx + vy * vy);
         if (mag > 0) {
             vx = (vx / mag) * currentSpeed;
@@ -54,8 +58,26 @@ public class Manhandla extends ZeldaEnemy {
             y = Math.max(16, Math.min(y, ZeldaRoom.ROOM_PIXEL_H - height - 16));
         }
 
+        // Check for bomb in center — kills all arms instantly
+        for (Projectile p : projectiles) {
+            if (p.isActive() && p.isPlayerProjectile() && p.isBomb() && p.getBombPhase() == 2) {
+                double cx = x + width / 2;
+                double cy = y + height / 2;
+                if (p.getHitbox().contains(cx, cy)) {
+                    // Bomb hit center — destroy all arms
+                    for (int i = 0; i < 4; i++) clawActive[i] = false;
+                    clawsAlive = 0;
+                    health = 0;
+                    active = false;
+                    p.deactivate();
+                    return;
+                }
+            }
+        }
+
         // Shoot fireballs from active claws
         shootTimer--;
+        int interval = SHOOT_INTERVAL_BASE - (4 - clawsAlive) * 15;
         if (shootTimer <= 0 && clawsAlive > 0) {
             double[][] clawDirs = {{0, -1}, {-1, 0}, {0, 1}, {1, 0}};
             for (int i = 0; i < 4; i++) {
@@ -69,7 +91,7 @@ public class Manhandla extends ZeldaEnemy {
                     projectiles.add(fb);
                 }
             }
-            shootTimer = SHOOT_INTERVAL - (4 - clawsAlive) * 10;
+            shootTimer = Math.max(30, interval);
         }
     }
 
@@ -77,21 +99,20 @@ public class Manhandla extends ZeldaEnemy {
     public void damage(int amount) {
         if (invulnerableFrames > 0) return;
 
-        // Damage a random active claw
+        // Destroy a random active claw (1 hit each)
+        java.util.List<Integer> alive = new java.util.ArrayList<>();
         for (int i = 0; i < 4; i++) {
-            if (clawActive[i]) {
-                clawHP[i] -= amount;
-                if (clawHP[i] <= 0) {
-                    clawActive[i] = false;
-                    clawsAlive--;
-                }
-                break;
-            }
+            if (clawActive[i]) alive.add(i);
+        }
+        if (!alive.isEmpty()) {
+            int idx = alive.get((int)(Math.random() * alive.size()));
+            clawActive[idx] = false;
+            clawsAlive--;
         }
 
         damageTimer = DAMAGE_FLASH_FRAMES;
         invulnerableFrames = DEFAULT_INVULN;
-        health -= amount;
+        health--;
         if (health <= 0 || clawsAlive <= 0) {
             active = false;
         }
@@ -127,7 +148,7 @@ public class Manhandla extends ZeldaEnemy {
         g2.setColor(Color.BLACK);
         g2.fillRect((int)x, (int)y - 6, width, 4);
         g2.setColor(Color.RED);
-        int hw = (int)((double)health / maxHealth * width);
+        int hw = (int)((double)clawsAlive / 4.0 * width);
         g2.fillRect((int)x, (int)y - 6, hw, 4);
     }
 }

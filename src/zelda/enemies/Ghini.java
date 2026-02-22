@@ -5,22 +5,41 @@ import java.util.List;
 import zelda.*;
 
 /**
- * Ghini: ghost enemy found in graveyards. Floats around erratically.
- * The first Ghini is the "real" one; touching gravestones spawns more.
- * 9 HP (only the original can be killed to despawn all).
+ * Ghini: ghost enemy found in graveyards.
+ * NES-accurate ringleader mechanic:
+ * - First Ghini on the screen is the "ringleader" (can be damaged, 10 HP).
+ * - Additional Ghinis spawn when Link touches gravestones — these are INVINCIBLE.
+ * - Killing the ringleader kills ALL Ghinis on screen.
  */
 public class Ghini extends ZeldaEnemy {
     private double floatAngle = Math.random() * Math.PI * 2;
     private double floatRadius = 30 + Math.random() * 20;
     private double centerX, centerY;
 
+    private boolean isRingleader;
+    private List<ZeldaEnemy> roomEnemies;
+
+    /** Create a ringleader Ghini (first one on screen). */
     public Ghini(double x, double y) {
+        this(x, y, true);
+    }
+
+    /** Create a Ghini with explicit ringleader flag. */
+    public Ghini(double x, double y, boolean ringleader) {
         super(x, y, 10, 1, AIType.RANDOM);
-        applyStats(EnemyStats.ghini());
+        this.isRingleader = ringleader;
+        if (ringleader) {
+            applyStats(EnemyStats.ghini());
+        } else {
+            applyStats(EnemyStats.ghiniSpawned());
+        }
         this.centerX = x;
         this.centerY = y;
         sprite = loadSprite("sprites/Enemies/Ghini.png");
     }
+
+    public boolean isRingleader() { return isRingleader; }
+    public void setRoomEnemies(List<ZeldaEnemy> enemies) { this.roomEnemies = enemies; }
 
     @Override
     public void update(ZeldaPlayer player, ZeldaRoom room, List<Projectile> projectiles) {
@@ -46,15 +65,49 @@ public class Ghini extends ZeldaEnemy {
     }
 
     @Override
+    public void damage(int amount) {
+        if (!isRingleader) return; // Spawned Ghinis are invincible
+        super.damage(amount);
+        if (health <= 0) {
+            // Killing ringleader kills ALL Ghinis
+            killAllGhinis();
+        }
+    }
+
+    private void killAllGhinis() {
+        if (roomEnemies != null) {
+            for (ZeldaEnemy e : roomEnemies) {
+                if (e instanceof Ghini && e != this) {
+                    ((Ghini) e).forceKill();
+                }
+            }
+        }
+    }
+
+    /** Force-kill a spawned Ghini (called when ringleader dies). */
+    public void forceKill() {
+        active = false;
+        health = 0;
+    }
+
+    @Override
     public void render(Graphics2D g2) {
         if (!active) return;
         if (damageTimer > 0 && (damageTimer / 3) % 2 == 0) {
             g2.setColor(Color.WHITE);
             g2.fillRect((int)x, (int)y, width, height);
         } else if (sprite != null) {
-            g2.drawImage(sprite, (int)x, (int)y, width, height, null);
+            // Spawned Ghinis are slightly transparent
+            if (!isRingleader) {
+                Composite old = g2.getComposite();
+                g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.7f));
+                g2.drawImage(sprite, (int)x, (int)y, width, height, null);
+                g2.setComposite(old);
+            } else {
+                g2.drawImage(sprite, (int)x, (int)y, width, height, null);
+            }
         } else {
-            g2.setColor(new Color(200, 200, 220, 180));
+            g2.setColor(new Color(200, 200, 220, isRingleader ? 220 : 140));
             g2.fillOval((int)x, (int)y, width, height);
             g2.setColor(Color.BLACK);
             g2.fillRect((int)x + 4, (int)y + 5, 3, 3);

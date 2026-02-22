@@ -37,6 +37,10 @@ public class ZeldaPlayer {
     private boolean candleUsedThisScreen = false;
     private java.util.List<Projectile> roomProjectiles;
 
+    // B-item usage flags for ZeldaGame to react to
+    private boolean justUsedRecorder = false;
+    private boolean justUsedFood = false;
+
     private Inventory inventory;
     private String name = "LINK";
     private String currentColorVariant = "Normal";
@@ -154,6 +158,7 @@ public class ZeldaPlayer {
 
         moving = false;
         if (!attacking) {
+            int prevDir = direction;
             if (keyHandler.upPressed) {
                 direction = DIR_UP;
                 worldY -= MOVE_SPEED;
@@ -170,6 +175,20 @@ public class ZeldaPlayer {
                 direction = DIR_RIGHT;
                 worldX += MOVE_SPEED;
                 moving = true;
+            }
+            // NES grid alignment: snap to 8px boundary when changing perpendicular axis
+            if (moving && prevDir != direction) {
+                boolean wasVertical = (prevDir == DIR_UP || prevDir == DIR_DOWN);
+                boolean nowVertical = (direction == DIR_UP || direction == DIR_DOWN);
+                if (wasVertical != nowVertical) {
+                    if (nowVertical) {
+                        // Changing from horizontal to vertical: snap X to 8px grid
+                        worldX = Math.round(worldX / 8.0) * 8;
+                    } else {
+                        // Changing from vertical to horizontal: snap Y to 8px grid
+                        worldY = Math.round(worldY / 8.0) * 8;
+                    }
+                }
             }
         }
 
@@ -336,6 +355,15 @@ public class ZeldaPlayer {
     public void setRoomProjectiles(java.util.List<Projectile> projs) { this.roomProjectiles = projs; }
     public void onScreenChange() { candleUsedThisScreen = false; }
 
+    public boolean consumeRecorderFlag() {
+        if (justUsedRecorder) { justUsedRecorder = false; return true; }
+        return false;
+    }
+    public boolean consumeFoodFlag() {
+        if (justUsedFood) { justUsedFood = false; return true; }
+        return false;
+    }
+
     private void useBItem() {
         if (roomProjectiles == null) return;
         Inventory.BItem bItem = inventory.getSelectedBItem();
@@ -349,6 +377,11 @@ public class ZeldaPlayer {
         switch (bItem) {
             case BOOMERANG:
                 if (!inventory.hasBoomerang()) return;
+                // Only one boomerang at a time — check if one is already active
+                for (Projectile p : roomProjectiles) {
+                    if (p.isActive() && p.isPlayerProjectile() && p.isReturning() ||
+                        (p.isActive() && p.isPlayerProjectile() && p.isBoomerangType())) return;
+                }
                 speed = inventory.hasMagicalBoomerang() ? 4.0 : 3.0;
                 switch (direction) {
                     case DIR_UP:    vy = -speed; break;
@@ -361,6 +394,7 @@ public class ZeldaPlayer {
                 boom.setSize(8, 8);
                 boom.setDamage(0); // boomerang stuns, doesn't kill
                 boom.setReturnTarget(this, inventory.hasMagicalBoomerang() ? 256 : 80);
+                boom.setBoomerangType(true);
                 roomProjectiles.add(boom);
                 bItemCooldown = B_ITEM_COOLDOWN_FRAMES;
                 break;
@@ -408,6 +442,7 @@ public class ZeldaPlayer {
                 fire.setColor(Color.ORANGE);
                 fire.setSize(8, 8);
                 fire.setDamage(1);
+                fire.setCandleFire(true); // Travel ~48px then become stationary flame
                 roomProjectiles.add(fire);
                 candleUsedThisScreen = true;
                 bItemCooldown = B_ITEM_COOLDOWN_FRAMES;
@@ -433,13 +468,13 @@ public class ZeldaPlayer {
 
             case RECORDER:
                 if (!inventory.hasRecorder()) return;
-                // Recorder effect handled by ZeldaGame
+                justUsedRecorder = true;
                 bItemCooldown = B_ITEM_COOLDOWN_FRAMES * 3;
                 break;
 
             case FOOD:
                 if (!inventory.hasFood()) return;
-                // Food placement handled by ZeldaGame
+                justUsedFood = true;
                 bItemCooldown = B_ITEM_COOLDOWN_FRAMES * 2;
                 break;
 

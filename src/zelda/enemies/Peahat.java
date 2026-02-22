@@ -4,6 +4,12 @@ import java.awt.*;
 import java.util.List;
 import zelda.*;
 
+/**
+ * Peahat: flying plant enemy.
+ * NES-accurate: INVULNERABLE while flying/moving. Only vulnerable when STOPPED.
+ * Hover movement in random patterns, periodically stops.
+ * 2 HP, 1/2 heart contact.
+ */
 public class Peahat extends ZeldaEnemy {
     private static final double FLOAT_AMPLITUDE = 2.0;
     private static final double FLOAT_SPEED = 0.15;
@@ -14,7 +20,7 @@ public class Peahat extends ZeldaEnemy {
     private double angle = 0;
     private double floatOffset = 0;
     private int moveTimer = 0;
-    private boolean moving = true;
+    private boolean flying = true; // true = moving/flying (invulnerable), false = stopped (vulnerable)
     private double targetX, targetY;
     private int pauseTimer = 0;
 
@@ -38,7 +44,7 @@ public class Peahat extends ZeldaEnemy {
         angle += FLOAT_SPEED;
         floatOffset = Math.sin(angle) * FLOAT_AMPLITUDE;
 
-        if (moving) {
+        if (flying) {
             moveTimer++;
             double dx = targetX - x;
             double dy = targetY - y;
@@ -49,13 +55,13 @@ public class Peahat extends ZeldaEnemy {
                 y += (dy / dist) * speed;
             }
             if (dist <= 4 || moveTimer > MOVE_TIMEOUT) {
-                moving = false;
+                flying = false;
                 pauseTimer = 0;
             }
         } else {
             pauseTimer++;
             if (pauseTimer > PAUSE_MIN + Math.random() * PAUSE_RANGE) {
-                moving = true;
+                flying = true;
                 moveTimer = 0;
                 targetX = 32 + Math.random() * 192;
                 targetY = 32 + Math.random() * 112;
@@ -72,17 +78,24 @@ public class Peahat extends ZeldaEnemy {
             g2.setColor(new Color(180, 100, 50));
             g2.fillOval((int) x, drawY, 16, 16);
         }
-        if (invulnerableFrames > 0 || !moving) {
-            g2.setColor(new Color(255, 255, 255, moving ? 100 : 50));
+        // Show subtle visual cue when stopped (vulnerable)
+        if (!flying) {
+            g2.setColor(new Color(255, 255, 255, 40));
+            g2.fillRect((int) x, drawY, 16, 16);
+        }
+        if (invulnerableFrames > 0) {
+            g2.setColor(new Color(255, 255, 255, 100));
             g2.fillRect((int) x, drawY, 16, 16);
         }
     }
 
     @Override
     public void damage(int amount) {
-        if (!moving) super.damage(amount);
+        // Only vulnerable when stopped (not flying)
+        if (flying) return;
+        super.damage(amount);
     }
 
     @Override
-    public boolean canDamage() { return moving; }
+    public boolean canDamage() { return active && flying; } // Deals contact damage while flying
 }

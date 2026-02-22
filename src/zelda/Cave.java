@@ -65,6 +65,15 @@ public class Cave {
         enter(player, 7, 7);
     }
 
+    /** Enter a specific cave by its numeric ID (for revealed secrets). */
+    public void enterById(ZeldaPlayer player, int caveId) {
+        active = true;
+        itemTaken = false;
+        selectedSlot = -1;
+        currentCave = CaveData.getCaveById(caveId);
+        player.setPosition(PLAYER_SPAWN_X, PLAYER_SPAWN_Y);
+    }
+
     public boolean update(ZeldaPlayer player) {
         if (!active) return false;
 

@@ -1,6 +1,7 @@
 package zelda;
 
 import zelda.enemies.*;
+import zelda.bosses.*;
 
 /**
  * Creates enemy instances from string type names.
@@ -96,6 +97,25 @@ public class EnemyFactory {
 
             // Trap (invulnerable blade trap)
             case "Trap":         return new Trap(x, y);
+
+            // Spark (Anti-Fairy)
+            case "Spark":        return new Spark(x, y);
+
+            // StatueFire (dungeon wall statue shooter)
+            case "StatueFire":   return new StatueFire(x, y);
+            case "StatueFireUp": return new StatueFire(x, y, 0);
+            case "StatueFireLeft": return new StatueFire(x, y, 1);
+            case "StatueFireDown": return new StatueFire(x, y, 2);
+            case "StatueFireRight": return new StatueFire(x, y, 3);
+
+            // Boulder (Death Mountain falling rocks)
+            case "Boulder":      return new Boulder(x, y);
+
+            // Bosses that can appear as enemies in later dungeons
+            case "Moldorm":      return new Moldorm(x, y);
+            case "LanmolaRed":   return new Lanmola(x, y, false);
+            case "LanmolaBlue":  return new Lanmola(x, y, true);
+            case "Patra":        return new Patra(x, y);
 
             default:
                 System.err.println("[EnemyFactory] Unknown enemy type: " + type);
