@@ -1,8 +1,8 @@
 package zelda.bosses;
 
-import zelda.*;
 import java.awt.*;
 import java.util.List;
+import zelda.*;
 
 /**
  * Aquamentus: dragon boss for Dungeons 1 and 7.
@@ -80,7 +80,7 @@ public class Aquamentus extends ZeldaEnemy {
             Projectile fireball = new Projectile(x, y + height / 2, vx, vy, false);
             fireball.setColor(Color.ORANGE);
             fireball.setSize(10, 10);
-            fireball.setDamage(1); // 1/2 heart
+            fireball.setDamage(EnemyStats.FIREBALL_DAMAGE);
             projectiles.add(fireball);
         }
     }

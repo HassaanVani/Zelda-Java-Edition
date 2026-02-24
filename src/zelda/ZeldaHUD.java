@@ -4,6 +4,7 @@ import java.awt.*;
 import java.io.File;
 import javax.swing.ImageIcon;
 
+
 public class ZeldaHUD {
     private ZeldaPlayer player;
     private boolean inDungeon = false;
@@ -71,7 +72,7 @@ public class ZeldaHUD {
         candleIcon = loadGif(p + "Blue Candle.gif");
         recorderIcon = loadGif(p + "Recorder.gif");
         foodIcon = loadGif(p + "Food.gif");
-        potionIcon = loadGif(p + "Potion (Blue).gif");
+        potionIcon = loadGif(p + "Life Potion.gif");
         rodIcon = loadGif(p + "Magical Rod.gif");
     }
 

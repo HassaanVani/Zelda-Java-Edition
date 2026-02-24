@@ -23,6 +23,9 @@ public class DungeonData {
         public final boolean isStairway;
         public final int stairTargetX;
         public final int stairTargetY;
+        public String oldManType = null;     // null, "DOOR_REPAIR", "GRUMBLE", "MONEY_OR_LIFE", "HINT"
+        public String oldManText = null;
+        public int oldManCost = 0;
 
         public DungeonRoomDef(int localX, int localY, int mapCol, int mapRow,
                               String[] enemies, int[] doors, String itemType,
@@ -43,6 +46,14 @@ public class DungeonData {
             this.isStairway = isStairway;
             this.stairTargetX = stairTargetX;
             this.stairTargetY = stairTargetY;
+        }
+
+        /** Set Old Man NPC for this room. Returns self for chaining. */
+        public DungeonRoomDef withOldMan(String type, String text, int cost) {
+            this.oldManType = type;
+            this.oldManText = text;
+            this.oldManCost = cost;
+            return this;
         }
     }
 
@@ -101,42 +112,103 @@ public class DungeonData {
     private static String[] e(String... types) { return types; }
     private static final String[] EMPTY = new String[0];
 
+    // ===== Per-room NES atlas tile mapping =====
+    // The atlas (zelda-dungeons.png) is a 16x16 grid representing the NES underworld:
+    //   Rows 0-7  = UW Block 1 (Levels 1-6 share this grid)
+    //   Rows 8-15 = UW Block 2 (Levels 7-9 share this grid)
+    // NES Y-axis: row 0 = top of dungeon (triforce end), row 7 = bottom (entrance end)
+    // All NES dungeon entrances are at row 7 of their block.
+    //
+    // Each room gets its own unique atlas tile based on its NES grid position:
+    //   atlas_col = BASE_COL[level] + localX
+    //   atlas_row = BLOCK_ROW_OFFSET[level] + 7 - localY
+    //
+    // BASE_COL: column offset converting localX=0 to the leftmost NES column for that dungeon
+    // BLOCK_ROW_OFFSET: 0 for Block 1 (levels 1-6), 8 for Block 2 (levels 7-9)
+    //
+    // Determined by matching DungeonData room shapes to colored tile clusters in the atlas:
+    //   Level 1 (Eagle):  Teal cluster,     cols 1-6,  rows 2-7  → base_col=0
+    //   Level 2 (Moon):   Blue cluster,     cols 12-15,rows 0-7  → base_col=11
+    //   Level 3 (Manji):  MedGreen cluster, cols 9-13, rows 2-7  → base_col=9
+    //   Level 4 (Snake):  Gold+Brown cluster,cols 0-3, rows 0-7  → base_col=0
+    //   Level 5 (Lizard): Green+DkGreen,    cols 4-7,  rows 0-7  → base_col=3
+    //   Level 6 (Dragon): Gold cluster B,   cols 8-13, rows 0-7  → base_col=7
+    //   Level 7 (Demon):  Green cluster,    cols 0-6,  rows 8-15 → base_col=0
+    //   Level 8 (Lion):   Mixed cluster,    cols 1-5,  rows 8-15 → base_col=0
+    //   Level 9 (Skull):  Gray cluster,     cols 0-7,  rows 8-15 → base_col=0
+
+    // Current dungeon level — set at start of each buildLevel*() method
+    private static int currentLevel = 1;
+
+    //                                     unused, L1, L2, L3, L4, L5, L6, L7, L8, L9
+    private static final int[] BASE_COL =       {0,  0, 11,  9,  0,  3,  7,  0,  0,  0};
+    private static final int[] BLOCK_ROW_OFF =  {0,  0,  0,  0,  0,  0,  0,  8,  8,  8};
+
+    /** Compute the atlas tile {col, row} for a room at (localX, localY) in the current dungeon. */
+    private static int[] computeAtlasTile(int localX, int localY) {
+        int col = BASE_COL[currentLevel] + localX;
+        int row = BLOCK_ROW_OFF[currentLevel] + 7 - localY;
+        // Clamp to valid atlas range [0,15]
+        col = Math.min(Math.max(col, 0), 15);
+        row = Math.min(Math.max(row, 0), 15);
+        return new int[]{col, row};
+    }
+
     /** Basic room */
     private static DungeonRoomDef r(int lx, int ly, int mc, int mr,
                                      String[] enemies, int[] doors, String item) {
-        return new DungeonRoomDef(lx, ly, mc, mr, enemies, doors, item, null, false, false, -1, false, -1, -1);
+        int[] at = computeAtlasTile(lx, ly);
+        return new DungeonRoomDef(lx, ly, at[0], at[1], enemies, doors, item, null, false, false, -1, false, -1, -1);
+    }
+    /** Entrance room — south passage always open for player entry/exit */
+    private static DungeonRoomDef entr(int lx, int ly, int mc, int mr, int[] doors) {
+        doors[2] = OPEN; // South passage open (entrance/exit)
+        int[] at = computeAtlasTile(lx, ly);
+        return new DungeonRoomDef(lx, ly, at[0], at[1], EMPTY, doors, null, null, false, false, -1, false, -1, -1);
     }
     /** Boss room */
     private static DungeonRoomDef boss(int lx, int ly, int mc, int mr,
                                         int[] doors, String bossType) {
-        return new DungeonRoomDef(lx, ly, mc, mr, EMPTY, doors, null, bossType, false, false, -1, false, -1, -1);
+        int[] at = computeAtlasTile(lx, ly);
+        return new DungeonRoomDef(lx, ly, at[0], at[1], EMPTY, doors, null, bossType, false, false, -1, false, -1, -1);
     }
     /** Dark room */
     private static DungeonRoomDef dark(int lx, int ly, int mc, int mr,
                                         String[] enemies, int[] doors, String item) {
-        return new DungeonRoomDef(lx, ly, mc, mr, enemies, doors, item, null, true, false, -1, false, -1, -1);
+        int[] at = computeAtlasTile(lx, ly);
+        return new DungeonRoomDef(lx, ly, at[0], at[1], enemies, doors, item, null, true, false, -1, false, -1, -1);
     }
     /** Room with pushable block */
     private static DungeonRoomDef block(int lx, int ly, int mc, int mr,
                                          String[] enemies, int[] doors, String item, int pushDir) {
-        return new DungeonRoomDef(lx, ly, mc, mr, enemies, doors, item, null, false, true, pushDir, false, -1, -1);
+        int[] at = computeAtlasTile(lx, ly);
+        return new DungeonRoomDef(lx, ly, at[0], at[1], enemies, doors, item, null, false, true, pushDir, false, -1, -1);
     }
     /** Room with stairway (block push reveals stairs) */
     private static DungeonRoomDef stair(int lx, int ly, int mc, int mr,
                                          String[] enemies, int[] doors, String item,
                                          int pushDir, int stx, int sty) {
-        return new DungeonRoomDef(lx, ly, mc, mr, enemies, doors, item, null, false, true, pushDir, true, stx, sty);
+        int[] at = computeAtlasTile(lx, ly);
+        return new DungeonRoomDef(lx, ly, at[0], at[1], enemies, doors, item, null, false, true, pushDir, true, stx, sty);
     }
     /** Triforce room */
     private static DungeonRoomDef triforce(int lx, int ly, int mc, int mr) {
-        return new DungeonRoomDef(lx, ly, mc, mr, EMPTY, doors(NONE, NONE, OPEN, NONE),
+        int[] at = computeAtlasTile(lx, ly);
+        return new DungeonRoomDef(lx, ly, at[0], at[1], EMPTY, doors(NONE, NONE, OPEN, NONE),
             "TRIFORCE", null, false, false, -1, false, -1, -1);
     }
     /** Zelda room (D9 only) */
     private static DungeonRoomDef zelda(int lx, int ly, int mc, int mr) {
-        return new DungeonRoomDef(lx, ly, mc, mr, EMPTY, doors(NONE, NONE, OPEN, NONE),
+        int[] at = computeAtlasTile(lx, ly);
+        return new DungeonRoomDef(lx, ly, at[0], at[1], EMPTY, doors(NONE, NONE, OPEN, NONE),
             "ZELDA", null, false, false, -1, false, -1, -1);
     }
+
+    // Old Man room types
+    public static final String OLDMAN_DOOR_REPAIR = "DOOR_REPAIR";
+    public static final String OLDMAN_GRUMBLE = "GRUMBLE";
+    public static final String OLDMAN_MONEY_OR_LIFE = "MONEY_OR_LIFE";
+    public static final String OLDMAN_HINT = "HINT";
 
     public static DungeonDef getDungeon(int level) {
         switch (level) {
@@ -164,48 +236,54 @@ public class DungeonData {
     // Enemies: Stalfos, Keese, Gel, GoriyaRed, Wallmaster
     // Boss: Aquamentus | Items: Bow, Boomerang
     private static DungeonDef buildLevel1() {
+        currentLevel = 1;
         DungeonRoomDef[] rooms = {
             // Entrance
-            r(3, 0, 3, 0, EMPTY, doors(OPEN, NONE, NONE, NONE), null),
+            entr(3, 0, 3, 0, doors(OPEN, NONE, NONE, NONE)),
 
             // Lower wing row (y=1)
             r(0, 1, 0, 1, e("Stalfos", "Stalfos", "Stalfos"),
                 doors(NONE, NONE, NONE, OPEN), "KEY"),
-            r(1, 1, 1, 1, e("KeeseBlue", "KeeseBlue", "KeeseBlue", "KeeseBlue", "KeeseBlue"),
+            r(1, 1, 1, 1, e("KeeseBlue", "KeeseBlue", "KeeseBlue", "KeeseBlue", "KeeseBlue", "KeeseBlue"),
                 doors(NONE, OPEN, NONE, OPEN), null),
-            r(2, 1, 2, 1, e("Stalfos", "Stalfos", "Stalfos"),
-                doors(NONE, OPEN, NONE, OPEN), "COMPASS"),
-            block(3, 1, 3, 1, e("Gel", "Gel", "Gel", "Gel", "Gel"),
-                doors(SHUTTER, OPEN, OPEN, OPEN), null, 0),
-            r(4, 1, 4, 1, e("Stalfos", "Stalfos", "Stalfos"),
+            r(2, 1, 2, 1, e("KeeseBlue", "KeeseBlue", "KeeseBlue"),
+                doors(NONE, OPEN, NONE, OPEN), "KEY"),
+            r(3, 1, 3, 1, EMPTY,
+                doors(LOCKED, OPEN, OPEN, OPEN), null),
+            r(4, 1, 4, 1, e("Stalfos", "Stalfos", "Stalfos", "Stalfos", "Stalfos"),
                 doors(NONE, OPEN, NONE, OPEN), "KEY"),
             r(5, 1, 5, 1, e("KeeseBlue", "KeeseBlue", "KeeseBlue"),
                 doors(NONE, OPEN, NONE, NONE), "MAP"),
 
             // Spine (y=2)
-            r(3, 2, 3, 2, e("Stalfos", "Stalfos"),
+            r(3, 2, 3, 2, e("Stalfos", "Stalfos", "Stalfos"),
                 doors(OPEN, NONE, OPEN, NONE), null),
 
             // Upper wing row (y=3)
-            dark(0, 3, 0, 3, e("KeeseBlue", "KeeseBlue", "KeeseBlue", "KeeseBlue", "KeeseBlue"),
-                doors(NONE, NONE, NONE, OPEN), "KEY"),
-            r(1, 3, 1, 3, e("Wallmaster", "Wallmaster"),
-                doors(NONE, OPEN, NONE, OPEN), null),
+            stair(0, 3, 0, 3, e("Trap", "Trap", "Trap", "Trap"),
+                doors(NONE, NONE, NONE, OPEN), null, 1, 0, 4),
+            r(1, 3, 1, 3, EMPTY,
+                doors(NONE, OPEN, NONE, OPEN), null)
+                .withOldMan(OLDMAN_HINT, "EASTMOST PENNINSULA IS THE SECRET", 0),
             r(2, 3, 2, 3, e("GoriyaRed", "GoriyaRed", "GoriyaRed"),
                 doors(NONE, OPEN, NONE, OPEN), "BOOMERANG"),
-            r(3, 3, 3, 3, e("Stalfos", "Stalfos"),
+            r(3, 3, 3, 3, e("GoriyaRed", "GoriyaRed", "GoriyaRed"),
                 doors(BOSS, OPEN, OPEN, OPEN), "BOSS_KEY"),
-            r(4, 3, 4, 3, e("GoriyaRed", "GoriyaRed"),
-                doors(NONE, OPEN, NONE, OPEN), "BOW"),
-            r(5, 3, 5, 3, e("Gel", "Gel", "Gel", "Stalfos"),
+            r(4, 3, 4, 3, e("KeeseBlue", "KeeseBlue", "KeeseBlue", "KeeseBlue", "KeeseBlue"),
+                doors(NONE, OPEN, NONE, OPEN), "COMPASS"),
+            r(5, 3, 5, 3, e("Wallmaster", "Wallmaster"),
                 doors(NONE, OPEN, NONE, NONE), "KEY"),
 
             // Boss room
             boss(3, 4, 3, 4, doors(OPEN, NONE, OPEN, NONE), "Aquamentus"),
             // Triforce
             triforce(3, 5, 3, 5),
+
+            // Underground BOW room (accessed via stairway from 0,3)
+            stair(0, 4, 0, 4, e("KeeseBlue", "KeeseBlue", "KeeseBlue", "KeeseBlue"),
+                doors(NONE, NONE, NONE, NONE), "BOW", 0, 0, 3),
         };
-        return new DungeonDef(1, "EAGLE", 3, 0, 6, 6, rooms, "BOW");
+        return new DungeonDef(1, "EAGLE", 3, 0, 6, 7, rooms, "BOW");
     }
 
     // ==================== LEVEL 2: Moon ====================
@@ -217,9 +295,10 @@ public class DungeonData {
     // Enemies: Rope, GoriyaRed/Blue, Zol, Gel, Moldorm
     // Boss: Dodongo | Item: Magical Boomerang
     private static DungeonDef buildLevel2() {
+        currentLevel = 2;
         DungeonRoomDef[] rooms = {
             // Entrance
-            r(2, 0, 2, 0, EMPTY, doors(OPEN, NONE, NONE, NONE), null),
+            entr(2, 0, 2, 0, doors(OPEN, NONE, NONE, NONE)),
 
             // Base arc (y=1)
             r(0, 1, 0, 1, e("Rope", "Rope", "Rope"),
@@ -268,9 +347,10 @@ public class DungeonData {
     // Enemies: DarknutRed (first appearance), Zol, Keese
     // Boss: Manhandla | Item: Raft
     private static DungeonDef buildLevel3() {
+        currentLevel = 3;
         DungeonRoomDef[] rooms = {
             // Entrance
-            r(2, 0, 2, 0, EMPTY, doors(OPEN, NONE, NONE, NONE), null),
+            entr(2, 0, 2, 0, doors(OPEN, NONE, NONE, NONE)),
 
             // Lower arm row (y=1)
             dark(0, 1, 0, 1, e("KeeseBlue", "KeeseBlue", "KeeseBlue", "KeeseBlue", "KeeseBlue"),
@@ -317,11 +397,12 @@ public class DungeonData {
     // Enemies: Vire, LikeLike, DarknutRed/Blue, Keese
     // Boss: Gleeok (2 heads) | Item: Stepladder
     private static DungeonDef buildLevel4() {
+        currentLevel = 4;
         DungeonRoomDef[] rooms = {
             // Entrance row (y=0)
             r(0, 0, 0, 0, e("Vire", "Vire", "KeeseRed", "KeeseRed"),
                 doors(NONE, NONE, NONE, OPEN), "MAP"),
-            r(1, 0, 1, 0, EMPTY, doors(OPEN, OPEN, NONE, NONE), null),
+            entr(1, 0, 1, 0, doors(OPEN, OPEN, NONE, NONE)),
 
             // First turn (y=1)
             r(1, 1, 1, 1, e("Vire", "Vire", "Vire"),
@@ -360,11 +441,12 @@ public class DungeonData {
     // Enemies: PolsVoice, Gibdo, DarknutBlue, Zol
     // Boss: Digdogger | Item: Recorder
     private static DungeonDef buildLevel5() {
+        currentLevel = 5;
         DungeonRoomDef[] rooms = {
             // Entrance & legs (y=0)
             r(2, 0, 2, 0, e("Zol", "Zol", "Zol"),
                 doors(OPEN, NONE, NONE, OPEN), "KEY"),
-            r(3, 0, 3, 0, EMPTY, doors(OPEN, OPEN, NONE, OPEN), null),
+            entr(3, 0, 3, 0, doors(OPEN, OPEN, NONE, OPEN)),
             r(4, 0, 4, 0, e("Gibdo", "Gibdo"),
                 doors(OPEN, OPEN, NONE, NONE), "KEY"),
 
@@ -413,11 +495,12 @@ public class DungeonData {
     // Enemies: WizzrobeRed/Blue (first appearance), LikeLike, Bubble
     // Boss: Gohma (Red) | Item: Magical Rod
     private static DungeonDef buildLevel6() {
+        currentLevel = 6;
         DungeonRoomDef[] rooms = {
             // Entrance/head (y=0)
             r(1, 0, 1, 0, e("WizzrobeBlue", "WizzrobeBlue"),
                 doors(OPEN, NONE, NONE, OPEN), "KEY"),
-            r(2, 0, 2, 0, EMPTY, doors(OPEN, OPEN, NONE, NONE), null),
+            entr(2, 0, 2, 0, doors(OPEN, OPEN, NONE, NONE)),
 
             // Body (y=1)
             dark(0, 1, 0, 1, e("Bubble", "Bubble", "LikeLike"),
@@ -461,9 +544,10 @@ public class DungeonData {
     // Boss: Aquamentus | Item: Red Candle
     // Note: "Grumble Grumble" Goriya blocks a passage (feed Food)
     private static DungeonDef buildLevel7() {
+        currentLevel = 7;
         DungeonRoomDef[] rooms = {
             // Entrance/chin (y=0)
-            r(2, 0, 2, 0, EMPTY, doors(OPEN, NONE, NONE, NONE), null),
+            entr(2, 0, 2, 0, doors(OPEN, NONE, NONE, NONE)),
 
             // Mouth (y=1) — two rooms with gap
             r(1, 1, 1, 1, e("GoriyaBlue", "GoriyaBlue", "Stalfos"),
@@ -477,9 +561,10 @@ public class DungeonData {
             block(2, 2, 2, 2, e("DarknutBlue", "DarknutBlue", "DarknutBlue"),
                 doors(OPEN, NONE, OPEN, NONE), "COMPASS", 0),
 
-            // Eyes (y=3)
-            r(1, 3, 1, 3, e("GoriyaBlue", "GoriyaBlue", "DarknutBlue"),
-                doors(OPEN, NONE, NONE, NONE), "BOSS_KEY"),
+            // Eyes (y=3) — left eye has grumble goriya, right has Red Candle
+            r(1, 3, 1, 3, EMPTY,
+                doors(OPEN, NONE, NONE, NONE), "BOSS_KEY")
+                .withOldMan(OLDMAN_GRUMBLE, "GRUMBLE,GRUMBLE...", 0),
             r(3, 3, 3, 3, e("GoriyaBlue", "GoriyaBlue"),
                 doors(OPEN, NONE, NONE, NONE), "RED_CANDLE"),
 
@@ -513,9 +598,10 @@ public class DungeonData {
     // Enemies: DarknutBlue, WizzrobeBlue, Gibdo, PolsVoice, LanmolaRed
     // Boss: Gleeok (4 heads) | Items: Magical Key, Book
     private static DungeonDef buildLevel8() {
+        currentLevel = 8;
         DungeonRoomDef[] rooms = {
             // Entrance (y=0)
-            r(2, 0, 2, 0, EMPTY, doors(OPEN, NONE, NONE, NONE), null),
+            entr(2, 0, 2, 0, doors(OPEN, NONE, NONE, NONE)),
 
             // Legs (y=1)
             r(0, 1, 0, 1, e("DarknutBlue", "DarknutBlue", "DarknutBlue", "DarknutBlue"),
@@ -533,9 +619,10 @@ public class DungeonData {
             r(2, 2, 2, 2, e("WizzrobeRed", "WizzrobeRed", "WizzrobeRed"),
                 doors(LOCKED, NONE, OPEN, NONE), "COMPASS"),
 
-            // Body (y=3)
-            dark(0, 3, 0, 3, e("WizzrobeBlue", "WizzrobeBlue", "WizzrobeBlue"),
-                doors(NONE, NONE, NONE, OPEN), "KEY"),
+            // Body (y=3) — first room is door repair old man
+            r(0, 3, 0, 3, EMPTY,
+                doors(NONE, NONE, NONE, OPEN), null)
+                .withOldMan(OLDMAN_DOOR_REPAIR, "PAY ME FOR THE DOOR REPAIR CHARGE", 20),
             r(1, 3, 1, 3, e("DarknutBlue", "DarknutBlue", "Gibdo"),
                 doors(NONE, OPEN, NONE, OPEN), null),
             r(2, 3, 2, 3, e("DarknutBlue", "DarknutBlue", "DarknutBlue"),
@@ -576,9 +663,10 @@ public class DungeonData {
     // Patra mini-boss, then Ganon final boss
     // Items: Silver Arrow, Red Ring (mapped as KEY for now)
     private static DungeonDef buildLevel9() {
+        currentLevel = 9;
         DungeonRoomDef[] rooms = {
             // Entrance (y=0)
-            r(3, 0, 3, 0, EMPTY, doors(OPEN, NONE, NONE, NONE), null),
+            entr(3, 0, 3, 0, doors(OPEN, NONE, NONE, NONE)),
 
             // Neck (y=1)
             dark(2, 1, 2, 1, e("WizzrobeRed", "WizzrobeRed", "WizzrobeRed"),
@@ -592,9 +680,10 @@ public class DungeonData {
             block(3, 2, 3, 2, e("WizzrobeBlue", "WizzrobeBlue", "LikeLike", "LikeLike"),
                 doors(LOCKED, NONE, OPEN, NONE), "COMPASS", 0),
 
-            // Jaw (y=3) — left and right sides
-            r(0, 3, 0, 3, e("DarknutBlue", "DarknutBlue", "DarknutBlue"),
-                doors(OPEN, NONE, NONE, OPEN), "KEY"),
+            // Jaw (y=3) — left side has money-or-life old man
+            r(0, 3, 0, 3, EMPTY,
+                doors(OPEN, NONE, NONE, OPEN), null)
+                .withOldMan(OLDMAN_MONEY_OR_LIFE, "LEAVE YOUR LIFE OR MONEY", 50),
             r(1, 3, 1, 3, e("WizzrobeRed", "WizzrobeRed", "WizzrobeBlue"),
                 doors(NONE, OPEN, NONE, OPEN), null),
             r(2, 3, 2, 3, e("LikeLike", "LikeLike", "Gibdo", "Gibdo"),

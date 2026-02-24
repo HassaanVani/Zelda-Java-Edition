@@ -1,6 +1,7 @@
 package zelda.enemies;
 
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.util.List;
 import zelda.*;
 
@@ -12,12 +13,23 @@ public class Lynel extends ZeldaEnemy {
     private boolean isBlue;
     private int shootCooldown = 0;
     private static final int SHOOT_INTERVAL = 70;
+    private BufferedImage frontSprite;
+    private BufferedImage backSprite;
+    private BufferedImage leftSprite;
 
     public Lynel(double x, double y, boolean blue) {
         super(x, y, 4, 2, AIType.SHOOTER);
         this.isBlue = blue;
         applyStats(blue ? EnemyStats.lynelBlue() : EnemyStats.lynelRed());
-        sprite = loadSprite(blue ? "sprites/Enemies/Lynel (Blue).png" : "sprites/Enemies/Lynel (Red).png");
+        loadLynelSprites();
+    }
+
+    private void loadLynelSprites() {
+        String color = isBlue ? "Blue" : "Red";
+        frontSprite = loadSprite("sprites/Enemies/Lynel - " + color + " (Front).gif");
+        backSprite = loadSprite("sprites/Enemies/Lynel - " + color + " (Back).gif");
+        leftSprite = loadSprite("sprites/Enemies/Lynel - " + color + " (Left).gif");
+        sprite = frontSprite;
     }
 
     @Override
@@ -30,19 +42,20 @@ public class Lynel extends ZeldaEnemy {
 
         shootCooldown--;
         if (shootCooldown <= 0) {
-            double dx = player.getWorldX() - x;
-            double dy = player.getWorldY() - y;
-            double dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 130 && dist > 0) {
-                double spd = 2.5;
-                Projectile beam = new Projectile(x + width / 2, y + height / 2,
-                    (dx / dist) * spd, (dy / dist) * spd, false);
-                beam.setColor(isBlue ? new Color(100, 100, 255) : new Color(255, 200, 100));
-                beam.setSize(6, 6);
-                beam.setDamage(isBlue ? 4 : 2);
-                projectiles.add(beam);
-                shootCooldown = SHOOT_INTERVAL;
+            double vx = 0, vy = 0;
+            double spd = 2.5;
+            switch (direction) {
+                case 0: vy = -spd; break; // up
+                case 1: vx = -spd; break; // left
+                case 2: vy = spd; break;  // down
+                case 3: vx = spd; break;  // right
             }
+            Projectile beam = new Projectile(x + width / 2, y + height / 2, vx, vy, false);
+            beam.setColor(isBlue ? new Color(100, 100, 255) : new Color(255, 200, 100));
+            beam.setSize(6, 6);
+            beam.setDamage(EnemyStats.SWORD_BEAM_DAMAGE);
+            projectiles.add(beam);
+            shootCooldown = SHOOT_INTERVAL;
         }
     }
 
@@ -52,13 +65,37 @@ public class Lynel extends ZeldaEnemy {
         if (damageTimer > 0 && (damageTimer / 3) % 2 == 0) {
             g2.setColor(Color.WHITE);
             g2.fillRect((int)x, (int)y, width, height);
-        } else if (sprite != null) {
-            g2.drawImage(sprite, (int)x, (int)y, width, height, null);
         } else {
-            g2.setColor(isBlue ? new Color(60, 60, 180) : new Color(180, 60, 40));
-            g2.fillRect((int)x, (int)y, width, height);
-            g2.setColor(Color.YELLOW);
-            g2.fillRect((int)x + 6, (int)y, 4, 10);
+            BufferedImage currentSprite = null;
+            boolean flipH = false;
+            switch (direction) {
+                case 0: // up (back)
+                    currentSprite = backSprite;
+                    break;
+                case 1: // left
+                    currentSprite = leftSprite;
+                    break;
+                case 2: // down (front)
+                    currentSprite = frontSprite;
+                    break;
+                case 3: // right (flip left horizontally)
+                    currentSprite = leftSprite;
+                    flipH = true;
+                    break;
+            }
+
+            if (currentSprite != null) {
+                if (flipH) {
+                    g2.drawImage(currentSprite, (int)x + width, (int)y, -width, height, null);
+                } else {
+                    g2.drawImage(currentSprite, (int)x, (int)y, width, height, null);
+                }
+            } else {
+                g2.setColor(isBlue ? new Color(60, 60, 180) : new Color(180, 60, 40));
+                g2.fillRect((int)x, (int)y, width, height);
+                g2.setColor(Color.YELLOW);
+                g2.fillRect((int)x + 6, (int)y, 4, 10);
+            }
         }
     }
 }

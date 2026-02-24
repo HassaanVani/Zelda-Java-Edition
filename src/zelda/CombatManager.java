@@ -48,7 +48,8 @@ public class CombatManager {
                     if (e.isAlive() && swordBox.intersects(e.getHitbox())) {
                         if (e.isImmuneToWeapon(EnemyStats.DMG_SWORD)) continue;
                         if (e.hasFrontShield() && isFacingAttacker(e, player)) continue;
-                        e.damage(swordDmg);
+                        e.damage(swordDmg, player.getWorldX(), player.getWorldY());
+                        if (audio != null) audio.playSFX("Beast Hit.wav");
                     }
                 }
             }
@@ -94,10 +95,14 @@ public class CombatManager {
                             if (weaponType == EnemyStats.DMG_ARROW && dmg >= 4) {
                                 ((zelda.bosses.Ganon) e).damageBysilverArrow(dmg);
                             } else {
-                                e.damage(dmg); // reveals + damages but can't kill
+                                e.damage(dmg, p.getX(), p.getY());
                             }
                         } else {
-                            e.damage(dmg);
+                            e.damage(dmg, p.getX(), p.getY());
+                        }
+                        if (audio != null) {
+                            if (p.isBomb()) audio.playSFX("Explosion.wav");
+                            else audio.playSFX("Beast Hit.wav");
                         }
                         if (!p.isPiercing()) p.deactivate();
                         break;
@@ -121,6 +126,7 @@ public class CombatManager {
                     // Unblockable projectiles (Wizzrobe magic, statue fire) bypass shields
                     if (!p.isUnblockable() && canShieldDeflect(player, p)) {
                         p.deactivate();
+                        if (audio != null) audio.playSFX("Shield Deflect.wav");
                     } else {
                         player.takeDamage(p.getDamage(), p.getX(), p.getY());
                         if (itemDropSystem != null) itemDropSystem.onLinkDamaged();
@@ -189,7 +195,7 @@ public class CombatManager {
      */
     private int getProjectileWeaponType(Projectile p) {
         if (p.getDamage() == 0) return EnemyStats.DMG_BOOMERANG;
-        java.awt.Color c = p.getColor();
+        Color c = p.getColor();
         if (c.equals(Color.ORANGE) || c.equals(new Color(255, 100, 100))) return EnemyStats.DMG_FIRE;
         if (c.equals(Color.DARK_GRAY)) return EnemyStats.DMG_BOMB;
         if (c.equals(Color.WHITE) || c.equals(new Color(180, 120, 40))) return EnemyStats.DMG_ARROW;

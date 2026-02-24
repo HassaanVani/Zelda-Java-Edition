@@ -22,7 +22,8 @@ public class Stalfos extends ZeldaEnemy {
         oldY = y;
         
         if (damageTimer > 0) damageTimer--;
-        
+        if (invulnerableFrames > 0) invulnerableFrames--;
+
         animationCounter++;
         if (animationCounter >= 10) {
             animationCounter = 0;

@@ -111,26 +111,6 @@ public class AudioManager {
         } catch (Exception e) {}
     }
     
-    public void setMusicVolume(float volume) {
-        this.musicVolume = Math.max(0, Math.min(1, volume));
-        if (currentMusic != null && currentMusic.isOpen()) {
-            setClipVolume(currentMusic, musicVolume);
-        }
-    }
-    
-    public void setSFXVolume(float volume) {
-        this.sfxVolume = Math.max(0, Math.min(1, volume));
-    }
-    
-    public void setMusicEnabled(boolean enabled) {
-        this.musicEnabled = enabled;
-        if (!enabled) stopMusic();
-    }
-    
-    public void setSFXEnabled(boolean enabled) {
-        this.sfxEnabled = enabled;
-    }
-    
     public void cleanup() {
         stopMusic();
         for (Clip sfx : sfxCache.values()) {

@@ -1,6 +1,8 @@
 package zelda;
 
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * Tracks all collectible items and game progression state for a single save file.
@@ -68,11 +70,13 @@ public class Inventory {
 
     // --- Overworld / dungeon progress ---
     // Tracks which rooms have been cleared (enemies killed) — key = "rX_rY"
-    private java.util.Set<String> clearedRooms = new java.util.HashSet<>();
+    private Set<String> clearedRooms = new HashSet<>();
     // Tracks which caves/secrets have been visited — key = "rX_rY_caveId"
-    private java.util.Set<String> visitedCaves = new java.util.HashSet<>();
+    private Set<String> visitedCaves = new HashSet<>();
     // Tracks which dungeon rooms have been cleared per dungeon — key = "dLevel_rX_rY"
-    private java.util.Set<String> clearedDungeonRooms = new java.util.HashSet<>();
+    private Set<String> clearedDungeonRooms = new HashSet<>();
+    // Tracks which dungeon room items have been collected — key = "dLevel_rX_rY"
+    private Set<String> collectedDungeonItems = new HashSet<>();
 
     // --- Freeze timer (from CLOCK item) ---
     private int freezeTimer = 0;
@@ -216,7 +220,6 @@ public class Inventory {
     public void setBombs(int b) { bombs = Math.max(0, Math.min(maxBombs, b)); }
     public void addBombs(int b) { setBombs(bombs + b); }
     public int getMaxBombs() { return maxBombs; }
-    public void setMaxBombs(int m) { maxBombs = m; }
     public boolean useBomb() {
         if (bombs > 0) { bombs--; return true; }
         return false;
@@ -239,8 +242,11 @@ public class Inventory {
     public boolean isFullHealth() { return health >= maxHealth; }
     public boolean isAlive() { return health > 0; }
     public void takeDamage(int halfHearts) {
-        int actual = (int) Math.ceil(halfHearts * getDamageMultiplier());
-        if (actual < 1) actual = 1;
+        // NES-accurate ring reduction: bit-shift right per ring level
+        // Blue Ring (level 1): damage >> 1 (half damage)
+        // Red Ring (level 2): damage >> 2 (quarter damage)
+        int actual = halfHearts >> ringLevel;
+        if (actual < 1 && halfHearts > 0) actual = 1; // minimum 1 half-heart if any damage
         setHealth(health - actual);
     }
 
@@ -271,6 +277,8 @@ public class Inventory {
     public boolean isCaveVisited(int roomX, int roomY, int caveId) { return visitedCaves.contains(roomX + "_" + roomY + "_" + caveId); }
     public void markDungeonRoomCleared(int level, int roomX, int roomY) { clearedDungeonRooms.add(level + "_" + roomX + "_" + roomY); }
     public boolean isDungeonRoomCleared(int level, int roomX, int roomY) { return clearedDungeonRooms.contains(level + "_" + roomX + "_" + roomY); }
+    public void markDungeonItemCollected(int level, int roomX, int roomY) { collectedDungeonItems.add(level + "_" + roomX + "_" + roomY); }
+    public boolean isDungeonItemCollected(int level, int roomX, int roomY) { return collectedDungeonItems.contains(level + "_" + roomX + "_" + roomY); }
 
     // ========== Freeze Timer (CLOCK item) ==========
     public int getFreezeTimer() { return freezeTimer; }
@@ -329,6 +337,7 @@ public class Inventory {
         props.setProperty("clearedRooms", String.join(",", clearedRooms));
         props.setProperty("visitedCaves", String.join(",", visitedCaves));
         props.setProperty("clearedDungeonRooms", String.join(",", clearedDungeonRooms));
+        props.setProperty("collectedDungeonItems", String.join(",", collectedDungeonItems));
     }
 
     public void loadFromProperties(Properties props) {
@@ -383,6 +392,10 @@ public class Inventory {
         clearedDungeonRooms.clear();
         String cdr = props.getProperty("clearedDungeonRooms", "");
         if (!cdr.isEmpty()) for (String s : cdr.split(",")) clearedDungeonRooms.add(s);
+
+        collectedDungeonItems.clear();
+        String cdi = props.getProperty("collectedDungeonItems", "");
+        if (!cdi.isEmpty()) for (String s : cdi.split(",")) collectedDungeonItems.add(s);
     }
 
     /**

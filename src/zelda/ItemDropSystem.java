@@ -122,8 +122,4 @@ public class ItemDropSystem {
         }
     }
 
-    // Getters for state inspection
-    public int getWorldKillCycle() { return worldKillCycle; }
-    public int getWorldKillCount() { return worldKillCount; }
-    public int getHelpDropCount() { return helpDropCount; }
 }

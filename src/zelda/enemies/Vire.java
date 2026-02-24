@@ -1,6 +1,7 @@
 package zelda.enemies;
 
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.util.List;
 import zelda.*;
 
@@ -11,6 +12,8 @@ import zelda.*;
 public class Vire extends ZeldaEnemy {
     private double vx, vy;
     private List<ZeldaEnemy> roomEnemies;
+    private BufferedImage frontSprite;
+    private BufferedImage backSprite;
 
     public void setRoomEnemies(List<ZeldaEnemy> enemies) {
         this.roomEnemies = enemies;
@@ -21,7 +24,13 @@ public class Vire extends ZeldaEnemy {
         applyStats(EnemyStats.vire());
         vx = (Math.random() < 0.5 ? -1 : 1) * speed;
         vy = (Math.random() < 0.5 ? -1 : 1) * speed;
-        sprite = loadSprite("sprites/Enemies/Vire.png");
+        loadVireSprites();
+    }
+
+    private void loadVireSprites() {
+        frontSprite = loadSprite("sprites/Enemies/Vire (Front).gif");
+        backSprite = loadSprite("sprites/Enemies/Vire (Back).gif");
+        sprite = frontSprite;
     }
 
     @Override
@@ -40,6 +49,13 @@ public class Vire extends ZeldaEnemy {
         if (y < 8 || y > ZeldaRoom.ROOM_PIXEL_H - height - 8) {
             vy = -vy;
             y = Math.max(8, Math.min(y, ZeldaRoom.ROOM_PIXEL_H - height - 8));
+        }
+
+        // Update sprite based on vertical movement direction
+        if (vy < 0) {
+            sprite = backSprite; // moving up
+        } else {
+            sprite = frontSprite; // moving down
         }
 
         // Slightly adjust towards player

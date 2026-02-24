@@ -75,6 +75,7 @@ public class Moblin extends ZeldaEnemy {
         Projectile p = new Projectile(x + width/2, y + height/2, vx, vy, false);
         p.setColor(isRed ? new Color(180, 56, 0) : new Color(80, 80, 80));
         p.setSize(4, 12);
+        p.setDamage(EnemyStats.SPEAR_DAMAGE);
         projectiles.add(p);
     }
 

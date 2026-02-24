@@ -1,9 +1,9 @@
 package zelda.bosses;
 
-import zelda.*;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
+import zelda.*;
 
 /**
  * Gleeok: multi-headed dragon boss.
@@ -23,7 +23,7 @@ public class Gleeok extends ZeldaEnemy {
     private List<DetachedHead> detachedHeads = new ArrayList<>();
     private int shootTimer = 0;
     private static final int SHOOT_INTERVAL = 80;
-    private static final int HEAD_HP_EACH = 4;
+    private static final int HEAD_HP_EACH = 10; // NES: $A0/$10 = 10 wooden sword hits per head
 
     public Gleeok(double x, double y) {
         this(x, y, 2);
@@ -31,10 +31,10 @@ public class Gleeok extends ZeldaEnemy {
 
     public Gleeok(double x, double y, int heads) {
         super(x, y, heads * HEAD_HP_EACH, 2, AIType.SHOOTER);
+        applyStats(EnemyStats.gleeok());
         this.width = 24;
         this.height = 32;
         this.speed = 0.2;
-        this.damage = 2; // 1 heart
         this.totalHeads = heads;
         this.headsAlive = heads;
         this.headHP = new int[heads];
@@ -47,7 +47,7 @@ public class Gleeok extends ZeldaEnemy {
             headOffset[i][0] = Math.cos(headAngle[i]) * 16;
             headOffset[i][1] = -12 + Math.sin(headAngle[i]) * 8;
         }
-        sprite = loadSprite("sprites/Bosses/Gleeok.png");
+        sprite = loadSprite("sprites/Bosses/4 - Gleeok.gif");
     }
 
     @Override
@@ -83,7 +83,7 @@ public class Gleeok extends ZeldaEnemy {
                         Projectile fb = new Projectile(hx, hy, (dx / dist) * 1.5, (dy / dist) * 1.5, false);
                         fb.setColor(Color.ORANGE);
                         fb.setSize(8, 8);
-                        fb.setDamage(2);
+                        fb.setDamage(EnemyStats.FIREBALL_DAMAGE);
                         projectiles.add(fb);
                     }
                 }
@@ -200,7 +200,7 @@ public class Gleeok extends ZeldaEnemy {
                     Projectile fb = new Projectile(x, y, (dx / dist) * 1.5, (dy / dist) * 1.5, false);
                     fb.setColor(new Color(255, 140, 0));
                     fb.setSize(6, 6);
-                    fb.setDamage(2);
+                    fb.setDamage(EnemyStats.FIREBALL_DAMAGE);
                     projectiles.add(fb);
                 }
                 shootTimer = SHOOT_INTERVAL;

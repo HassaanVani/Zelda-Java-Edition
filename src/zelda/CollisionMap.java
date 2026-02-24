@@ -31,27 +31,34 @@ public class CollisionMap {
             grid = createDefaultGrid();
         }
 
-        // Auto-detect cave/dungeon entrance from sprite map and mark walkable
+        // Detect entrance from pre-computed CAVE tiles or RoomData positions
         RoomData.RoomDef def = RoomData.getRoomDef(roomX, roomY);
-        if (def != null && renderer != null) {
+        if (def != null) {
             boolean hasEntrance = (def.caveId >= 0 || def.dungeonId >= 0);
             if (hasEntrance) {
-                int[] opening = renderer.findDarkOpening(roomX, roomY);
-                if (opening != null) {
-                    detectedEntrances.put(key, opening);
-                    markEntranceWalkable(grid, opening[0], opening[1]);
+                // Check if pre-computed grid already has CAVE tiles (type 5)
+                int[] cavePos = findCaveTileInGrid(grid);
+                if (cavePos != null) {
+                    // Use the center of the CAVE tile cluster as entrance
+                    int[] center = findCaveClusterCenter(grid, cavePos[0], cavePos[1]);
+                    detectedEntrances.put(key, center);
+                    // Ensure approach path below cave entrance is walkable
+                    ensureApproachPath(grid, center[0], center[1]);
                 } else {
-                    // Fallback: find the topmost WALL tile adjacent to a
-                    // walkable tile near the horizontal center — that's where
-                    // a cave entrance would naturally appear
-                    int[] fallback = findFallbackEntrance(grid);
-                    if (fallback != null) {
-                        detectedEntrances.put(key, fallback);
-                        markEntranceWalkable(grid, fallback[0], fallback[1]);
+                    // No CAVE tiles in pre-computed data — try image-based dark
+                    // opening detection (finds the black entrance rectangle)
+                    int[] darkPos = null;
+                    if (renderer != null) {
+                        darkPos = renderer.findDarkOpening(roomX, roomY);
+                    }
+                    if (darkPos != null) {
+                        grid[darkPos[0]][darkPos[1]] = TileType.CAVE.ordinal();
+                        detectedEntrances.put(key, darkPos);
+                        ensureApproachPath(grid, darkPos[0], darkPos[1]);
                     } else {
-                        // Last resort: use hardcoded position
-                        int ftx = (def.caveId >= 0 && def.caveTileX >= 0) ? def.caveTileX : 7;
-                        int fty = (def.caveId >= 0 && def.caveTileY >= 0) ? def.caveTileY : 3;
+                        // Last resort: use RoomData position (hidden caves etc.)
+                        int ftx = (def.caveTileX >= 0) ? def.caveTileX : 7;
+                        int fty = (def.caveTileY >= 0) ? def.caveTileY : 3;
                         detectedEntrances.put(key, new int[]{ftx, fty});
                         markEntranceWalkable(grid, ftx, fty);
                     }
@@ -74,45 +81,45 @@ public class CollisionMap {
         return detectedEntrances.get(key);
     }
 
-    /**
-     * Fallback entrance finder: scan the collision grid for a WALL tile near the
-     * horizontal center that has a FLOOR tile below it. This finds the boundary
-     * between terrain and open ground, which is where a cave entrance would be.
-     */
-    private int[] findFallbackEntrance(int[][] grid) {
-        int wallOrd = TileType.WALL.ordinal();
-        int floorOrd = TileType.FLOOR.ordinal();
-        int sandOrd = TileType.SAND.ordinal();
-
-        int bestTX = -1, bestTY = -1;
-        float bestScore = Float.MAX_VALUE;
-
-        for (int ty = 1; ty < TILES_Y - 2; ty++) {
-            for (int tx = 2; tx < TILES_X - 2; tx++) {
-                if (grid[tx][ty] != wallOrd) continue;
-
-                // Must have a walkable tile below (within 2 rows)
-                boolean hasFloorBelow = false;
-                for (int dy = 1; dy <= 2 && ty + dy < TILES_Y; dy++) {
-                    int below = grid[tx][ty + dy];
-                    if (below == floorOrd || below == sandOrd) {
-                        hasFloorBelow = true;
-                        break;
-                    }
-                }
-                if (!hasFloorBelow) continue;
-
-                // Score: prefer center, upper rows
-                float centerDist = Math.abs(tx - TILES_X / 2.0f);
-                float score = centerDist * 3 + ty * 1.5f;
-                if (score < bestScore) {
-                    bestScore = score;
-                    bestTX = tx;
-                    bestTY = ty;
+    /** Find first CAVE tile (type 5) in a grid. */
+    private int[] findCaveTileInGrid(int[][] grid) {
+        int caveOrd = TileType.CAVE.ordinal();
+        for (int ty = 0; ty < TILES_Y; ty++) {
+            for (int tx = 0; tx < TILES_X; tx++) {
+                if (grid[tx][ty] == caveOrd) {
+                    return new int[]{tx, ty};
                 }
             }
         }
-        return bestTX >= 0 ? new int[]{bestTX, bestTY} : null;
+        return null;
+    }
+
+    /** Find center of a horizontal cluster of CAVE tiles starting near (startX, startY). */
+    private int[] findCaveClusterCenter(int[][] grid, int startX, int startY) {
+        int caveOrd = TileType.CAVE.ordinal();
+        int minX = startX, maxX = startX;
+        // Expand left
+        while (minX > 0 && grid[minX - 1][startY] == caveOrd) minX--;
+        // Expand right
+        while (maxX < TILES_X - 1 && grid[maxX + 1][startY] == caveOrd) maxX++;
+        return new int[]{(minX + maxX) / 2, startY};
+    }
+
+    /** Ensure tiles below a cave entrance are walkable for player approach. */
+    private void ensureApproachPath(int[][] grid, int tx, int ty) {
+        int floor = TileType.FLOOR.ordinal();
+        int wallOrd = TileType.WALL.ordinal();
+        for (int dy = 1; dy <= 2; dy++) {
+            int ny = ty + dy;
+            if (ny >= 0 && ny < TILES_Y) {
+                for (int dx = -1; dx <= 1; dx++) {
+                    int nx = tx + dx;
+                    if (nx >= 0 && nx < TILES_X && grid[nx][ny] == wallOrd) {
+                        grid[nx][ny] = floor;
+                    }
+                }
+            }
+        }
     }
 
     /** Mark entrance tile and surrounding tiles as walkable FLOOR. */

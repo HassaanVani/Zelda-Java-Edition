@@ -146,6 +146,18 @@ public class TitleScreen {
                     state = ScreenState.NAME_ENTRY;
                 }
             } else if (selectedSlot == 3) {
+                // REGISTER YOUR NAME — go to name entry for first empty slot
+                for (int i = 0; i < 3; i++) {
+                    if (saveSlots[i] == null) {
+                        selectedSlot = i;
+                        break;
+                    }
+                }
+                enteredName = "";
+                charSelectX = 0;
+                charSelectY = 0;
+                state = ScreenState.NAME_ENTRY;
+            } else if (selectedSlot == 4) {
                 state = ScreenState.ELIMINATION;
             }
             keyReleased = false;
@@ -285,7 +297,7 @@ public class TitleScreen {
 
         // Logo at top
         if (logo != null) {
-            g2.drawImage(logo, 32, 8, 192, 84, null);
+            g2.drawImage(logo, 32, 4, 192, 107, null);
         } else {
             renderTextLogo(g2, 8);
         }
@@ -373,7 +385,7 @@ public class TitleScreen {
         // Subtitle
         g2.setFont(new Font("Monospaced", Font.BOLD, 7));
         g2.setColor(NES_WHITE);
-        centerText(g2, "- NES JAVA EDITION -", baseY + 74);
+        centerText(g2, "(C) 1986 NINTENDO", baseY + 74);
     }
 
     private void drawTriforce(Graphics2D g2, int cx, int cy, Color color) {

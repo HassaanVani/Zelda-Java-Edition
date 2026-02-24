@@ -60,9 +60,11 @@ public class DungeonRenderer {
         BufferedImage roomImg = getRoomImage(mapCol, mapRow);
         if (roomImg != null) {
             g2.drawImage(roomImg, 0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, null);
-            // Apply dungeon color tint overlay
+            // Apply dungeon color tint overlay — strong enough to recolor rooms
+            // that were rendered with a different dungeon's palette in the atlas
+            // (multiple dungeons share the same UW block grid positions)
             Color tint = NESPalette.getDungeonWallColor(currentDungeonLevel);
-            g2.setColor(new Color(tint.getRed(), tint.getGreen(), tint.getBlue(), 40));
+            g2.setColor(new Color(tint.getRed(), tint.getGreen(), tint.getBlue(), 110));
             g2.fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
         } else {
             renderFallbackRoom(g2);

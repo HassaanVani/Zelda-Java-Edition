@@ -1,6 +1,7 @@
 package zelda.enemies;
 
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.util.List;
 import zelda.*;
 
@@ -18,6 +19,8 @@ public class Ghini extends ZeldaEnemy {
 
     private boolean isRingleader;
     private List<ZeldaEnemy> roomEnemies;
+    private BufferedImage frontSprite;
+    private BufferedImage backSprite;
 
     /** Create a ringleader Ghini (first one on screen). */
     public Ghini(double x, double y) {
@@ -35,7 +38,13 @@ public class Ghini extends ZeldaEnemy {
         }
         this.centerX = x;
         this.centerY = y;
-        sprite = loadSprite("sprites/Enemies/Ghini.png");
+        loadGhiniSprites();
+    }
+
+    private void loadGhiniSprites() {
+        frontSprite = loadSprite("sprites/Enemies/Ghini (Front).gif");
+        backSprite = loadSprite("sprites/Enemies/Ghini (Back).gif");
+        sprite = frontSprite;
     }
 
     public boolean isRingleader() { return isRingleader; }
@@ -50,6 +59,14 @@ public class Ghini extends ZeldaEnemy {
         floatAngle += 0.03;
         x = centerX + Math.cos(floatAngle) * floatRadius;
         y = centerY + Math.sin(floatAngle) * floatRadius;
+
+        // Update sprite based on vertical float direction
+        double verticalDir = Math.sin(floatAngle) * floatRadius * 0.03; // derivative of y
+        if (verticalDir < 0) {
+            sprite = backSprite; // moving up
+        } else {
+            sprite = frontSprite; // moving down
+        }
 
         // Slowly drift center towards player
         double dx = player.getWorldX() - centerX;

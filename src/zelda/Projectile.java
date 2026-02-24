@@ -1,6 +1,11 @@
 package zelda;
 
 import java.awt.*;
+import java.awt.geom.AffineTransform;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.util.HashMap;
+import javax.imageio.ImageIO;
 
 public class Projectile {
     private double x, y;
@@ -15,6 +20,11 @@ public class Projectile {
     private Color color = Color.WHITE;
     private int damage = 1;
     private boolean piercing = false;
+
+    // Sprite rendering cache
+    private static final HashMap<String, BufferedImage> spriteCache = new HashMap<>();
+    private static boolean spritesLoaded = false;
+    private int spriteAnimCounter = 0;
 
     // Boomerang return behavior
     private boolean returning = false;
@@ -32,6 +42,9 @@ public class Projectile {
     private static final int BOMB_EXPLODE = 12; // $0C
     private static final int BOMB_FADE = 6;     // $06
     private int explosionRadius = 24;
+
+    // Owner reference (for enemies that need to track their own projectile, e.g. Goriya)
+    private Object owner = null;
 
     // Candle fire: travels then becomes stationary flame
     private boolean isCandleFire = false;
@@ -134,25 +147,52 @@ public class Projectile {
 
     public void render(Graphics2D g2) {
         if (!active) return;
+        ensureSpritesLoaded();
+        spriteAnimCounter++;
 
         if (isBomb) {
             renderBomb(g2);
             return;
         }
 
-        g2.setColor(color);
-        g2.fillOval((int)x, (int)y, width, height);
-        g2.setColor(Color.WHITE);
-        g2.drawOval((int)x, (int)y, width, height);
+        BufferedImage spr = getProjectileSprite();
+        if (spr != null) {
+            int cx = (int)x + width / 2;
+            int cy = (int)y + height / 2;
+            int dx = cx - spr.getWidth() / 2;
+            int dy = cy - spr.getHeight() / 2;
+
+            if (boomerangType || owner instanceof zelda.enemies.Goriya) {
+                AffineTransform oldT = g2.getTransform();
+                g2.rotate(spriteAnimCounter * 0.4, cx, cy);
+                g2.drawImage(spr, dx, dy, null);
+                g2.setTransform(oldT);
+            } else {
+                g2.drawImage(spr, dx, dy, null);
+            }
+        } else {
+            g2.setColor(color);
+            g2.fillOval((int)x, (int)y, width, height);
+        }
     }
 
     private void renderBomb(Graphics2D g2) {
         switch (bombPhase) {
-            case 0: // Fuse — draw bomb
-                g2.setColor(Color.DARK_GRAY);
-                g2.fillOval((int)x, (int)y, width, height);
-                g2.setColor(Color.ORANGE);
-                g2.fillRect((int)x + width / 2 - 1, (int)y - 3, 2, 4);
+            case 0: // Fuse — draw bomb sprite
+                BufferedImage bombSpr = spriteCache.get("bomb");
+                if (bombSpr != null) {
+                    int cx = (int)x + width / 2;
+                    int cy = (int)y + height / 2;
+                    g2.drawImage(bombSpr, cx - bombSpr.getWidth() / 2,
+                                 cy - bombSpr.getHeight() / 2, null);
+                } else {
+                    g2.setColor(Color.DARK_GRAY);
+                    g2.fillOval((int)x, (int)y, width, height);
+                }
+                if ((bombTimer / 4) % 2 == 0) {
+                    g2.setColor(Color.ORANGE);
+                    g2.fillRect((int)x + width / 2 - 1, (int)y - 3, 2, 4);
+                }
                 break;
             case 1: // Flash — white blink
                 g2.setColor((bombTimer / 2) % 2 == 0 ? Color.WHITE : Color.YELLOW);
@@ -169,6 +209,80 @@ public class Projectile {
                 g2.setComposite(old);
                 break;
         }
+    }
+
+    // --- Sprite loading and identification ---
+
+    private static void ensureSpritesLoaded() {
+        if (spritesLoaded) return;
+        spritesLoaded = true;
+        String obj = "sprites/Objects/";
+        String enm = "sprites/Enemies/";
+        cache("arrow_up", obj + "Arrow (Up).gif");
+        cache("arrow_left", obj + "Arrow (Left).gif");
+        cache("silver_arrow_up", obj + "Silver Arrow (Up).gif");
+        cache("silver_arrow_left", obj + "Silver Arrow (Left).gif");
+        cache("boomerang", obj + "Boomerang.gif");
+        cache("magical_boomerang", obj + "Magical Boomerang.gif");
+        cache("bomb", obj + "Bomb.gif");
+        cache("fire", obj + "Fire.gif");
+        cache("rock", enm + "Rock.gif");
+        flip("arrow_up", "arrow_down", false, true);
+        flip("arrow_left", "arrow_right", true, false);
+        flip("silver_arrow_up", "silver_arrow_down", false, true);
+        flip("silver_arrow_left", "silver_arrow_right", true, false);
+    }
+
+    private static void cache(String key, String path) {
+        try {
+            File f = new File(path);
+            if (f.exists()) spriteCache.put(key, ImageIO.read(f));
+        } catch (Exception e) {}
+    }
+
+    private static void flip(String src, String dest, boolean flipH, boolean flipV) {
+        BufferedImage img = spriteCache.get(src);
+        if (img == null) return;
+        int w = img.getWidth(), h = img.getHeight();
+        BufferedImage result = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = result.createGraphics();
+        if (flipH) g.drawImage(img, w, 0, -w, h, null);
+        else if (flipV) g.drawImage(img, 0, h, w, -h, null);
+        g.dispose();
+        spriteCache.put(dest, result);
+    }
+
+    private BufferedImage getProjectileSprite() {
+        // Player or enemy boomerang (flagged)
+        if (boomerangType) {
+            return spriteCache.get(color.equals(Color.CYAN) ? "magical_boomerang" : "boomerang");
+        }
+        // Enemy boomerang (Goriya — not flagged but identifiable by owner)
+        if (owner instanceof zelda.enemies.Goriya) {
+            return spriteCache.get("boomerang");
+        }
+        // Fire (player candle fire or stationary orange flame from rod+book)
+        if (playerOwned && (isCandleFire || color.equals(Color.ORANGE))) {
+            return spriteCache.get("fire");
+        }
+        // Player arrow
+        if (playerOwned) {
+            boolean regularArrow = color.equals(new Color(180, 120, 40));
+            boolean silverArrow = color.equals(Color.WHITE);
+            if (regularArrow || silverArrow) {
+                String prefix = silverArrow ? "silver_arrow" : "arrow";
+                if (Math.abs(vy) >= Math.abs(vx)) {
+                    return spriteCache.get(vy < 0 ? prefix + "_up" : prefix + "_down");
+                } else {
+                    return spriteCache.get(vx < 0 ? prefix + "_left" : prefix + "_right");
+                }
+            }
+        }
+        // Enemy rocks (Octorok)
+        if (!playerOwned && (color.equals(new Color(180, 56, 0)) || color.equals(new Color(100, 100, 200)))) {
+            return spriteCache.get("rock");
+        }
+        return null;
     }
 
     public Rectangle getHitbox() {
@@ -217,6 +331,10 @@ public class Projectile {
     private boolean boomerangType = false;
     public void setBoomerangType(boolean b) { this.boomerangType = b; }
     public boolean isBoomerangType() { return boomerangType; }
+
+    // Owner reference (for enemies tracking their own projectile, e.g. Goriya boomerang)
+    public void setOwner(Object o) { this.owner = o; }
+    public Object getOwner() { return owner; }
 
     // Unblockable projectiles (Wizzrobe magic, statue fire) bypass all shields
     private boolean unblockable = false;

@@ -25,7 +25,7 @@ public class Wallmaster extends ZeldaEnemy {
         super(x, y, 2, 0, AIType.CHASE); // 0 contact damage — grab teleports instead
         applyStats(EnemyStats.wallmaster());
         this.damage = 0; // Override: Wallmaster does NOT deal heart damage
-        sprite = loadSprite("sprites/Enemies/Wallmaster.png");
+        sprite = loadSprite("sprites/Enemies/Wall Master.gif");
     }
 
     public boolean hasGrabbedPlayer() { return grabbedPlayer; }

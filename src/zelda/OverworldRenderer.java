@@ -121,6 +121,13 @@ public class OverworldRenderer {
     }
 
     public int[][] generateCollisionGrid(int roomX, int roomY) {
+        // Use pre-computed collision data (analyzed from exact NES palette)
+        int[][] precomputed = OverworldCollisionData.getCollisionGrid(roomX, roomY);
+        if (precomputed != null) {
+            return precomputed;
+        }
+
+        // Fallback: generate from image analysis (should not normally be reached)
         int tilesX = ZeldaRoom.TILES_X;
         int tilesY = ZeldaRoom.TILES_Y;
         int[][] grid = new int[tilesX][tilesY];
@@ -251,8 +258,8 @@ public class OverworldRenderer {
         float bestScore = Float.MAX_VALUE;
         int bestTX = -1, bestTY = -1;
 
-        for (int ty = 1; ty < tilesY - 2; ty++) {
-            for (int tx = 2; tx < tilesX - 2; tx++) {
+        for (int ty = 0; ty < tilesY - 1; ty++) {
+            for (int tx = 1; tx < tilesX - 1; tx++) {
                 if (brightness[tx][ty] >= darkThresh) continue;
 
                 // Must have a significantly brighter tile within 3 rows below

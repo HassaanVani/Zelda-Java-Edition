@@ -16,7 +16,7 @@ public class LikeLike extends ZeldaEnemy {
     public LikeLike(double x, double y) {
         super(x, y, 4, 1, AIType.CHASE);
         applyStats(EnemyStats.likeLike());
-        sprite = loadSprite("sprites/Enemies/LikeLike.png");
+        sprite = loadSprite("sprites/Enemies/Like Like.gif");
     }
 
     @Override
@@ -52,7 +52,7 @@ public class LikeLike extends ZeldaEnemy {
                 engulfing = false;
                 engulfTimer = 0;
             }
-        } else if (getHitbox().intersects(player.getHitbox()) && player.getInventory().hasMagicalShield()) {
+        } else if (getHitbox().intersects(player.getHitbox())) {
             engulfing = true;
             engulfTimer = 0;
         }

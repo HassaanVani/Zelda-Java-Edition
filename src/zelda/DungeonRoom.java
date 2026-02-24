@@ -1,8 +1,11 @@
 package zelda;
 
 import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import javax.imageio.ImageIO;
 
 public class DungeonRoom {
     public static final int DOOR_NORTH = 0;
@@ -38,7 +41,18 @@ public class DungeonRoom {
     private double blockOrigY = blockY;
     private int blockPushDir = -1; // -1=any, 0=N, 1=W, 2=S, 3=E
     private static final int BLOCK_SIZE = 16;
+
+    private static AudioManager audioManager;
+    public static void setAudioManager(AudioManager am) { audioManager = am; }
     private int dungeonNumber = 1;
+
+    // Enemy death poof animation
+    private static BufferedImage deathEffectSheet;
+    private static boolean deathEffectLoaded = false;
+    private static final int DEATH_FRAMES = 4;
+    private static final int DEATH_TICKS_PER_FRAME = 4;
+    private static final int DEATH_DURATION = DEATH_FRAMES * DEATH_TICKS_PER_FRAME;
+    private List<int[]> deathEffects = new ArrayList<>();
 
     // Stairway support
     private boolean hasStairway = false;
@@ -46,11 +60,115 @@ public class DungeonRoom {
     private int stairTargetX = -1;
     private int stairTargetY = -1;
 
+    private int[][] dungeonCollisionGrid;
+
+    private int[][] getDungeonCollisionGrid() {
+        if (dungeonCollisionGrid != null) return dungeonCollisionGrid;
+
+        int tilesX = ZeldaRoom.TILES_X;
+        int tilesY = ZeldaRoom.TILES_Y;
+        dungeonCollisionGrid = new int[tilesX][tilesY];
+
+        // Border walls (2 tiles thick on each side)
+        for (int tx = 0; tx < tilesX; tx++) {
+            for (int ty = 0; ty < tilesY; ty++) {
+                if (tx <= 1 || tx >= tilesX - 2 || ty <= 1 || ty >= tilesY - 2) {
+                    dungeonCollisionGrid[tx][ty] = TileType.WALL.ordinal();
+                } else {
+                    dungeonCollisionGrid[tx][ty] = TileType.FLOOR.ordinal();
+                }
+            }
+        }
+
+        // Open door passages only where doors exist (not NONE)
+        int midX = tilesX / 2;
+        int midY = tilesY / 2;
+        int floor = TileType.FLOOR.ordinal();
+
+        if (doors[DOOR_NORTH] != DoorState.NONE) {
+            dungeonCollisionGrid[midX - 1][0] = floor;
+            dungeonCollisionGrid[midX][0] = floor;
+            dungeonCollisionGrid[midX - 1][1] = floor;
+            dungeonCollisionGrid[midX][1] = floor;
+        }
+        if (doors[DOOR_SOUTH] != DoorState.NONE) {
+            dungeonCollisionGrid[midX - 1][tilesY - 1] = floor;
+            dungeonCollisionGrid[midX][tilesY - 1] = floor;
+            dungeonCollisionGrid[midX - 1][tilesY - 2] = floor;
+            dungeonCollisionGrid[midX][tilesY - 2] = floor;
+        }
+        if (doors[DOOR_WEST] != DoorState.NONE) {
+            dungeonCollisionGrid[0][midY - 1] = floor;
+            dungeonCollisionGrid[0][midY] = floor;
+            dungeonCollisionGrid[1][midY - 1] = floor;
+            dungeonCollisionGrid[1][midY] = floor;
+        }
+        if (doors[DOOR_EAST] != DoorState.NONE) {
+            dungeonCollisionGrid[tilesX - 1][midY - 1] = floor;
+            dungeonCollisionGrid[tilesX - 1][midY] = floor;
+            dungeonCollisionGrid[tilesX - 2][midY - 1] = floor;
+            dungeonCollisionGrid[tilesX - 2][midY] = floor;
+        }
+
+        return dungeonCollisionGrid;
+    }
+
+    public boolean isWalkable(int pixelX, int pixelY) {
+        int tileX = pixelX / ZeldaRoom.TILE_SIZE;
+        int tileY = pixelY / ZeldaRoom.TILE_SIZE;
+        if (tileX < 0 || tileX >= ZeldaRoom.TILES_X || tileY < 0 || tileY >= ZeldaRoom.TILES_Y)
+            return false;
+        return TileType.fromId(getDungeonCollisionGrid()[tileX][tileY]).walkable;
+    }
+
     private DungeonRenderer renderer;
     private CollisionMap collisionMap;
     private ItemDropSystem itemDropSystem;
+    private Item.ItemType pendingItemGet = null; // For item-get animation trigger
+
+    // Old Man room support (NES dungeon NPCs)
+    public enum OldManType { NONE, DOOR_REPAIR, GRUMBLE, MONEY_OR_LIFE, HINT }
+    private OldManType oldManType = OldManType.NONE;
+    private String oldManText = "";
+    private int oldManCost = 0;         // Rupee cost for DOOR_REPAIR / MONEY_OR_LIFE
+    private boolean oldManResolved = false; // Has the player satisfied the requirement?
+    private int oldManTextReveal = 0;   // For character-by-character text reveal
+    private java.awt.image.BufferedImage oldManSprite;
 
     public void setItemDropSystem(ItemDropSystem ids) { this.itemDropSystem = ids; }
+
+    private void spawnDeathEffect(double ex, double ey) {
+        if (!deathEffectLoaded) {
+            deathEffectLoaded = true;
+            try {
+                File f = new File("sprites/Effects/enemy_death.png");
+                if (f.exists()) deathEffectSheet = ImageIO.read(f);
+            } catch (Exception e) {}
+        }
+        deathEffects.add(new int[]{(int)ex, (int)ey, 0});
+    }
+
+    private void updateDeathEffects() {
+        for (int i = deathEffects.size() - 1; i >= 0; i--) {
+            deathEffects.get(i)[2]++;
+            if (deathEffects.get(i)[2] >= DEATH_DURATION) {
+                deathEffects.remove(i);
+            }
+        }
+    }
+
+    private void renderDeathEffects(Graphics2D g2) {
+        if (deathEffectSheet == null) return;
+        int fw = deathEffectSheet.getWidth() / DEATH_FRAMES;
+        int fh = deathEffectSheet.getHeight();
+        for (int[] de : deathEffects) {
+            int frame = de[2] / DEATH_TICKS_PER_FRAME;
+            if (frame >= DEATH_FRAMES) continue;
+            int sx = frame * fw;
+            g2.drawImage(deathEffectSheet, de[0], de[1], de[0] + 16, de[1] + 16,
+                          sx, 0, sx + fw, fh, null);
+        }
+    }
 
     public DungeonRoom(int localX, int localY, int mapCol, int mapRow) {
         this.localX = localX;
@@ -122,7 +240,10 @@ public class DungeonRoom {
         this.collisionMap = c;
     }
 
-    public void enter() {
+    private Inventory playerInventory; // Set during enter for item persistence checks
+
+    public void enter(Inventory inv) {
+        this.playerInventory = inv;
         if (!visited) {
             visited = true;
             spawnEnemies();
@@ -130,9 +251,16 @@ public class DungeonRoom {
                 spawnBoss();
             }
             if (hasItem && roomItem != null) {
-                items.add(new Item(ZeldaRoom.ROOM_PIXEL_W / 2, ZeldaRoom.ROOM_PIXEL_H / 2, roomItem));
+                if (inv == null || !inv.isDungeonItemCollected(dungeonNumber, localX, localY)) {
+                    items.add(new Item(ZeldaRoom.ROOM_PIXEL_W / 2, ZeldaRoom.ROOM_PIXEL_H / 2, roomItem));
+                }
             }
         }
+    }
+
+    /** Backward-compatible enter without inventory. */
+    public void enter() {
+        enter(null);
     }
 
     private void spawnEnemies() {
@@ -178,15 +306,23 @@ public class DungeonRoom {
 
         for (int i = enemies.size() - 1; i >= 0; i--) {
             ZeldaEnemy e = enemies.get(i);
-            if (!frozen) e.update(player, null, projectiles);
+            if (!frozen) {
+                if (!e.processKnockback()) {
+                    e.update(player, null, projectiles);
+                }
+            }
             if (!e.isAlive()) {
+                spawnDeathEffect(e.getX(), e.getY());
                 if (itemDropSystem != null) {
                     Item.ItemType drop = itemDropSystem.onEnemyKilled(e.getDropClass());
                     if (drop != null) items.add(new Item(e.getX(), e.getY(), drop));
                 }
                 enemies.remove(i);
+                if (audioManager != null) audioManager.playSFX("Enemy Killed.wav");
             }
         }
+
+        updateDeathEffects();
 
         for (int i = projectiles.size() - 1; i >= 0; i--) {
             Projectile p = projectiles.get(i);
@@ -195,7 +331,7 @@ public class DungeonRoom {
             if (!p.isActive()) {
                 if (wasBefore && p.doesLeaveFire()) {
                     Projectile fire = new Projectile(p.getX(), p.getY(), 0, 0, true);
-                    fire.setColor(java.awt.Color.ORANGE);
+                    fire.setColor(Color.ORANGE);
                     fire.setSize(8, 8);
                     fire.setDamage(1);
                     projectiles.add(fire);
@@ -223,6 +359,12 @@ public class DungeonRoom {
         // Push block logic
         if (hasBlock && !blockPushed && cleared) {
             updatePushBlock(player);
+        }
+
+        // Old Man interaction
+        if (oldManType != OldManType.NONE && !oldManResolved) {
+            oldManTextReveal = Math.min(oldManText.length(), oldManTextReveal + 1);
+            updateOldMan(player);
         }
     }
 
@@ -260,6 +402,55 @@ public class DungeonRoom {
         }
     }
 
+    private void updateOldMan(ZeldaPlayer player) {
+        Inventory inv = player.getInventory();
+        // Old Man is at center top of room
+        double npcX = ZeldaRoom.ROOM_PIXEL_W / 2.0 - 8;
+        double npcY = 48;
+
+        // Check if player is close enough to interact
+        double dx = player.getWorldX() - npcX;
+        double dy = player.getWorldY() - npcY;
+        double dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 32) return;
+
+        switch (oldManType) {
+            case DOOR_REPAIR:
+                // Auto-pay when close enough
+                if (inv.getRupees() >= oldManCost) {
+                    inv.addRupees(-oldManCost);
+                    oldManResolved = true;
+                }
+                break;
+            case GRUMBLE:
+                // Need Food item
+                if (inv.hasFood()) {
+                    inv.setHasFood(false);
+                    oldManResolved = true;
+                }
+                break;
+            case MONEY_OR_LIFE:
+                // Pay rupees or lose a heart container
+                if (inv.getRupees() >= oldManCost) {
+                    inv.addRupees(-oldManCost);
+                    oldManResolved = true;
+                } else {
+                    // Can't pay — lose a heart container on passage
+                    if (inv.getHeartContainers() > 3) {
+                        inv.setMaxHealth((inv.getHeartContainers() - 1) * 2);
+                        inv.setHealth(Math.min(inv.getHealth(), inv.getMaxHealth()));
+                    }
+                    oldManResolved = true;
+                }
+                break;
+            case HINT:
+                oldManResolved = true; // Just show text, no cost
+                break;
+            default:
+                break;
+        }
+    }
+
     private void onRoomCleared() {
         // Open SHUTTER doors on room clear (not LOCKED — those require keys)
         for (int i = 0; i < 4; i++) {
@@ -282,6 +473,7 @@ public class DungeonRoom {
         }
         for (Item item : items) item.render(g2);
         for (ZeldaEnemy e : enemies) e.render(g2);
+        renderDeathEffects(g2);
         for (Projectile p : projectiles) p.render(g2);
 
         renderDoors(g2);
@@ -312,6 +504,40 @@ public class DungeonRoom {
         // Dark room overlay (show during fade-in too)
         if (isDark && darkFadeAlpha > 0) {
             renderDarkOverlay(g2, playerX, playerY);
+        }
+
+        // Old Man NPC rendering
+        if (oldManType != OldManType.NONE) {
+            int npcX = ZeldaRoom.ROOM_PIXEL_W / 2 - 8;
+            int npcY = 48;
+            if (oldManSprite != null) {
+                g2.drawImage(oldManSprite, npcX, npcY, 16, 16, null);
+            } else {
+                g2.setColor(new Color(200, 160, 120));
+                g2.fillRect(npcX, npcY, 16, 16);
+            }
+            // Two fires flanking the Old Man
+            int firePhase = ((int)(System.currentTimeMillis() / 150)) % 2;
+            Color fireC = (firePhase == 0) ? new Color(252, 152, 56)
+                                                     : new Color(252, 216, 108);
+            g2.setColor(fireC);
+            g2.fillRect(npcX - 24, npcY + 4, 8, 8);
+            g2.fillRect(npcX + 32, npcY + 4, 8, 8);
+            // Text
+            if (oldManText != null && oldManText.length() > 0) {
+                g2.setFont(new Font("Monospaced", Font.PLAIN, 8));
+                g2.setColor(Color.WHITE);
+                String visible = oldManText.substring(0, Math.min(oldManTextReveal, oldManText.length()));
+                // Word-wrap at ~28 chars per line
+                int maxLineLen = 28;
+                int textY = npcY + 24;
+                for (int i = 0; i < visible.length(); i += maxLineLen) {
+                    String line = visible.substring(i, Math.min(i + maxLineLen, visible.length()));
+                    int sw = g2.getFontMetrics().stringWidth(line);
+                    g2.drawString(line, (ZeldaRoom.ROOM_PIXEL_W - sw) / 2, textY);
+                    textY += 10;
+                }
+            }
         }
 
         // Boss room palette tint
@@ -430,6 +656,18 @@ public class DungeonRoom {
         this.stairTargetY = targetY;
     }
     public void setDungeonNumber(int num) { this.dungeonNumber = num; }
+
+    public void setOldMan(OldManType type, String text, int cost) {
+        this.oldManType = type;
+        this.oldManText = text;
+        this.oldManCost = cost;
+        try {
+            File f = new File("sprites/NPCs/Old Man.gif");
+            if (f.exists()) this.oldManSprite = ImageIO.read(f);
+        } catch (Exception ex) {}
+    }
+    public OldManType getOldManType() { return oldManType; }
+    public boolean isOldManResolved() { return oldManResolved; }
     public boolean hasZeldaItem() { return hasItem && roomItem == Item.ItemType.ZELDA; }
 
     // Stairway access
@@ -443,8 +681,31 @@ public class DungeonRoom {
     public int getStairTargetX() { return stairTargetX; }
     public int getStairTargetY() { return stairTargetY; }
 
+    private boolean isSpecialDungeonItem(Item.ItemType type) {
+        switch (type) {
+            case TRIFORCE: case HEART_CONTAINER: case BOW: case MAGICAL_BOOMERANG:
+            case RAFT: case STEPLADDER: case RECORDER: case MAGICAL_ROD:
+            case RED_CANDLE: case MAGICAL_KEY: case SILVER_ARROW: case BOSS_KEY: case BOOK:
+                return true;
+            default: return false;
+        }
+    }
+
+    /** Returns and clears the pending item-get animation trigger. */
+    public Item.ItemType consumePendingItemGet() {
+        Item.ItemType t = pendingItemGet;
+        pendingItemGet = null;
+        return t;
+    }
+
     private void applyDungeonItem(Item item, ZeldaPlayer player) {
         Inventory inv = player.getInventory();
+        // Mark this room's item as collected for persistence
+        inv.markDungeonItemCollected(dungeonNumber, localX, localY);
+        // Trigger item-get animation for special items
+        if (isSpecialDungeonItem(item.getType())) {
+            pendingItemGet = item.getType();
+        }
         switch (item.getType()) {
             case MAP:
                 inv.setHasMap(dungeonNumber, true);

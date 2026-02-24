@@ -1,8 +1,11 @@
 package zelda;
 
 import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import javax.imageio.ImageIO;
 
 public class ZeldaRoom {
     public static final int TILES_X = 16;
@@ -32,6 +35,17 @@ public class ZeldaRoom {
     private CollisionMap collisionMap;
     private RoomData.RoomDef roomDef;
     private ItemDropSystem itemDropSystem;
+
+    private static AudioManager audioManager;
+    public static void setAudioManager(AudioManager am) { audioManager = am; }
+
+    // Enemy death poof animation
+    private static BufferedImage deathEffectSheet;
+    private static boolean deathEffectLoaded = false;
+    private static final int DEATH_FRAMES = 4;
+    private static final int DEATH_TICKS_PER_FRAME = 4;
+    private static final int DEATH_DURATION = DEATH_FRAMES * DEATH_TICKS_PER_FRAME;
+    private List<int[]> deathEffects = new ArrayList<>(); // {x, y, timer}
 
     // Auto-detected entrance tile from sprite map (overrides hardcoded positions)
     private int detectedEntranceTileX = -1;
@@ -68,11 +82,22 @@ public class ZeldaRoom {
             if (roomDef.noEnemies) return;
             for (RoomData.EnemySpawn es : roomDef.enemies) {
                 double sx = es.x, sy = es.y;
-                // If spawn position is in a wall, find a nearby walkable spot
-                if (!isWalkable((int)sx + 8, (int)sy + 8)) {
-                    double[] safe = findWalkableNear(sx, sy);
-                    if (safe == null) continue; // skip if no walkable spot
-                    sx = safe[0]; sy = safe[1];
+                boolean isWaterEnemy = es.type.equals("Zola");
+                if (isWaterEnemy) {
+                    // Water enemies need WATER tiles, not walkable land
+                    TileType tile = getTileAt((int)sx + 8, (int)sy + 8);
+                    if (tile != TileType.WATER) {
+                        double[] waterSpot = findWaterNear(sx, sy);
+                        if (waterSpot == null) continue;
+                        sx = waterSpot[0]; sy = waterSpot[1];
+                    }
+                } else {
+                    // Land enemies need walkable tiles
+                    if (!isWalkable((int)sx + 8, (int)sy + 8)) {
+                        double[] safe = findWalkableNear(sx, sy);
+                        if (safe == null) continue;
+                        sx = safe[0]; sy = safe[1];
+                    }
                 }
                 ZeldaEnemy enemy = EnemyFactory.create(es.type, sx, sy);
                 if (enemy != null) enemies.add(enemy);
@@ -83,16 +108,27 @@ public class ZeldaRoom {
         // Fallback: biome-based random spawning for rooms without data
         int count = MIN_ENEMIES + (int)(Math.random() * (MAX_ENEMIES - MIN_ENEMIES + 1));
         String biome = getBiome(roomX, roomY);
+        boolean isWaterBiome = biome.equals("lake");
 
         for (int i = 0; i < count; i++) {
             for (int attempt = 0; attempt < SPAWN_ATTEMPTS; attempt++) {
                 double x = SPAWN_MARGIN + Math.random() * (ROOM_PIXEL_W - SPAWN_MARGIN * 2);
                 double y = SPAWN_MARGIN + Math.random() * (ROOM_PIXEL_H - SPAWN_MARGIN * 2);
 
-                if (isWalkable((int) x + 8, (int) y + 8)) {
-                    ZeldaEnemy enemy = createEnemyForBiome(biome, x, y);
-                    if (enemy != null) enemies.add(enemy);
-                    break;
+                if (isWaterBiome) {
+                    // Water enemies (Zola) need water tiles to spawn in
+                    TileType tile = getTileAt((int)x + 8, (int)y + 8);
+                    if (tile == TileType.WATER) {
+                        ZeldaEnemy enemy = createEnemyForBiome(biome, x, y);
+                        if (enemy != null) enemies.add(enemy);
+                        break;
+                    }
+                } else {
+                    if (isWalkable((int) x + 8, (int) y + 8)) {
+                        ZeldaEnemy enemy = createEnemyForBiome(biome, x, y);
+                        if (enemy != null) enemies.add(enemy);
+                        break;
+                    }
                 }
             }
         }
@@ -114,25 +150,22 @@ public class ZeldaRoom {
                     ? new zelda.enemies.Octorok(x, y, Math.random() < 0.3)
                     : new zelda.enemies.Moblin(x, y, Math.random() < 0.3);
             case "graveyard":
-                return Math.random() < 0.6
-                    ? new zelda.enemies.Stalfos(x, y)
-                    : new zelda.enemies.Leever(x, y, Math.random() < 0.3);
+                return new zelda.enemies.Ghini(x, y);
             case "lake":
-                return Math.random() < 0.7
-                    ? new zelda.enemies.Tektite(x, y, true)
-                    : new zelda.enemies.Peahat(x, y);
+                return new zelda.enemies.Zola(x, y);
             case "desert":
                 return Math.random() < 0.6
                     ? new zelda.enemies.Leever(x, y, Math.random() < 0.3)
                     : new zelda.enemies.Peahat(x, y);
             case "mountain":
-                return Math.random() < 0.5
-                    ? new zelda.enemies.Tektite(x, y, false)
-                    : new zelda.enemies.Octorok(x, y, true);
-            default:
                 double roll = Math.random();
-                if (roll < 0.4) return new zelda.enemies.Octorok(x, y, false);
-                if (roll < 0.7) return new zelda.enemies.Moblin(x, y, false);
+                if (roll < 0.4) return new zelda.enemies.Tektite(x, y, false);
+                if (roll < 0.7) return new zelda.enemies.Octorok(x, y, true);
+                return new zelda.enemies.Lynel(x, y, Math.random() < 0.3);
+            default:
+                double fieldRoll = Math.random();
+                if (fieldRoll < 0.4) return new zelda.enemies.Octorok(x, y, false);
+                if (fieldRoll < 0.7) return new zelda.enemies.Moblin(x, y, false);
                 return new zelda.enemies.Tektite(x, y, false);
         }
     }
@@ -145,12 +178,20 @@ public class ZeldaRoom {
 
         for (int i = enemies.size() - 1; i >= 0; i--) {
             ZeldaEnemy e = enemies.get(i);
-            if (!frozen) e.update(player, this, projectiles);
+            if (!frozen) {
+                if (!e.processKnockback()) {
+                    e.update(player, this, projectiles);
+                }
+            }
             if (!e.isAlive()) {
+                spawnDeathEffect(e.getX(), e.getY());
                 dropItem(e);
                 enemies.remove(i);
+                if (audioManager != null) audioManager.playSFX("Enemy Killed.wav");
             }
         }
+
+        updateDeathEffects();
 
         for (int i = projectiles.size() - 1; i >= 0; i--) {
             Projectile p = projectiles.get(i);
@@ -193,6 +234,39 @@ public class ZeldaRoom {
 
     public void setItemDropSystem(ItemDropSystem ids) { this.itemDropSystem = ids; }
 
+    private void spawnDeathEffect(double ex, double ey) {
+        if (!deathEffectLoaded) {
+            deathEffectLoaded = true;
+            try {
+                File f = new File("sprites/Effects/enemy_death.png");
+                if (f.exists()) deathEffectSheet = ImageIO.read(f);
+            } catch (Exception e) {}
+        }
+        deathEffects.add(new int[]{(int)ex, (int)ey, 0});
+    }
+
+    private void updateDeathEffects() {
+        for (int i = deathEffects.size() - 1; i >= 0; i--) {
+            deathEffects.get(i)[2]++;
+            if (deathEffects.get(i)[2] >= DEATH_DURATION) {
+                deathEffects.remove(i);
+            }
+        }
+    }
+
+    private void renderDeathEffects(Graphics2D g2) {
+        if (deathEffectSheet == null) return;
+        int fw = deathEffectSheet.getWidth() / DEATH_FRAMES;
+        int fh = deathEffectSheet.getHeight();
+        for (int[] de : deathEffects) {
+            int frame = de[2] / DEATH_TICKS_PER_FRAME;
+            if (frame >= DEATH_FRAMES) continue;
+            int sx = frame * fw;
+            g2.drawImage(deathEffectSheet, de[0], de[1], de[0] + 16, de[1] + 16,
+                          sx, 0, sx + fw, fh, null);
+        }
+    }
+
     private static int globalFrameCounter = 0;
 
     public void render(Graphics2D g2) {
@@ -222,6 +296,7 @@ public class ZeldaRoom {
 
         for (Item item : items) item.render(g2);
         for (ZeldaEnemy e : enemies) e.render(g2);
+        renderDeathEffects(g2);
         for (Projectile p : projectiles) p.render(g2);
     }
 
@@ -246,6 +321,26 @@ public class ZeldaRoom {
                 }
             }
         }
+    }
+
+    /** Search nearby tiles in expanding rings to find a WATER tile for water enemies. */
+    private double[] findWaterNear(double origX, double origY) {
+        for (int radius = 1; radius <= 8; radius++) {
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dy = -radius; dy <= radius; dy++) {
+                    if (Math.abs(dx) != radius && Math.abs(dy) != radius) continue;
+                    double nx = origX + dx * TILE_SIZE;
+                    double ny = origY + dy * TILE_SIZE;
+                    if (nx < TILE_SIZE || nx > ROOM_PIXEL_W - TILE_SIZE) continue;
+                    if (ny < TILE_SIZE || ny > ROOM_PIXEL_H - TILE_SIZE) continue;
+                    TileType tile = getTileAt((int)nx + 8, (int)ny + 8);
+                    if (tile == TileType.WATER) {
+                        return new double[]{nx, ny};
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     /** Search nearby tiles in expanding rings to find a walkable spawn position. */
@@ -316,11 +411,15 @@ public class ZeldaRoom {
 
     public int getDungeonEntranceTileX() {
         if (detectedEntranceTileX >= 0) return detectedEntranceTileX;
+        // Use hardcoded position from RoomData if available (stored in caveTileX)
+        if (roomDef != null && roomDef.caveTileX >= 0) return roomDef.caveTileX;
         return 7; // default
     }
 
     public int getDungeonEntranceTileY() {
         if (detectedEntranceTileY >= 0) return detectedEntranceTileY;
+        // Use hardcoded position from RoomData if available (stored in caveTileY)
+        if (roomDef != null && roomDef.caveTileY >= 0) return roomDef.caveTileY;
         return 3; // default
     }
 

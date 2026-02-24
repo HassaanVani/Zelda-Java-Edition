@@ -23,7 +23,8 @@ public class Bubble extends ZeldaEnemy {
         vx = (Math.random() < 0.5) ? SPEED : -SPEED;
         vy = (Math.random() < 0.5) ? SPEED : -SPEED;
 
-        sprite = loadSprite("sprites/Enemies/Bubble.gif");
+        String color = isBlue ? "Blue" : "Red";
+        sprite = loadSprite("sprites/Enemies/Bubble - " + color + ".gif");
     }
 
     public Bubble(double x, double y) {

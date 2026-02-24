@@ -1,8 +1,9 @@
 package zelda.bosses;
 
-import zelda.*;
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
+import zelda.*;
 
 /**
  * Manhandla: plant boss with 4 arm/pincer segments.
@@ -19,17 +20,17 @@ public class Manhandla extends ZeldaEnemy {
     private static final int SHOOT_INTERVAL_BASE = 90;
     private double vx, vy;
     private static final double BASE_SPEED = 0.5;
-    private static final double SPEED_INCREASE_PER_ARM = 0.5; // Significant speed increase
+    // NES: speed DOUBLES per destroyed hand (exponential, not additive)
 
     public Manhandla(double x, double y) {
         super(x, y, 4, 1, AIType.RANDOM); // 4 HP total (1 per arm)
+        applyStats(EnemyStats.manhandla());
         this.width = 24;
         this.height = 24;
         this.speed = BASE_SPEED;
-        this.damage = 1; // 1/2 heart
         vx = speed;
         vy = speed;
-        sprite = loadSprite("sprites/Bosses/3 - Manhandla.png");
+        sprite = loadSprite("sprites/Bosses/3 - Manhandla.gif");
     }
 
     @Override
@@ -38,8 +39,8 @@ public class Manhandla extends ZeldaEnemy {
         if (damageTimer > 0) damageTimer--;
         if (invulnerableFrames > 0) invulnerableFrames--;
 
-        // Speed increases as arms are destroyed
-        double currentSpeed = BASE_SPEED + (4 - clawsAlive) * SPEED_INCREASE_PER_ARM;
+        // NES: speed DOUBLES per destroyed hand (exponential)
+        double currentSpeed = BASE_SPEED * Math.pow(2, 4 - clawsAlive);
         double mag = Math.sqrt(vx * vx + vy * vy);
         if (mag > 0) {
             vx = (vx / mag) * currentSpeed;
@@ -100,7 +101,7 @@ public class Manhandla extends ZeldaEnemy {
         if (invulnerableFrames > 0) return;
 
         // Destroy a random active claw (1 hit each)
-        java.util.List<Integer> alive = new java.util.ArrayList<>();
+        List<Integer> alive = new ArrayList<>();
         for (int i = 0; i < 4; i++) {
             if (clawActive[i]) alive.add(i);
         }

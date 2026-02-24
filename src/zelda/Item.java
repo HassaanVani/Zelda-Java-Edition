@@ -76,26 +76,26 @@ public class Item {
             case FIVE_RUPEES: filename = "Rupy.gif"; break;
             case KEY: filename = "Key.gif"; break;
             case BOMB: filename = "Bomb.gif"; break;
-            case FAIRY: filename = "Fairy.gif"; break;
+            case FAIRY: basePath = "sprites/NPCs/"; filename = "Fairy.gif"; break;
             case BOMB_DROP: filename = "Bomb.gif"; break;
             case CLOCK: filename = "Clock.gif"; break;
             case SWORD: filename = "Wooden Sword (Up).gif"; break;
             case BOOMERANG: filename = "Boomerang.gif"; break;
             case MAP: filename = "Map.gif"; break;
             case COMPASS: filename = "Compass.gif"; break;
-            case TRIFORCE: filename = "Triforce Shard.gif"; break;
+            case TRIFORCE: filename = "Triforce1.gif"; break;
             case BOSS_KEY: filename = "Key.gif"; break;
             case BOW: filename = "Bow.gif"; break;
             case MAGICAL_BOOMERANG: filename = "Magical Boomerang.gif"; break;
-            case RAFT: filename = "Raft.gif"; break;
+            case RAFT: filename = "Raft1.gif"; break;
             case STEPLADDER: filename = "Stepladder.gif"; break;
             case RECORDER: filename = "Recorder.gif"; break;
             case MAGICAL_ROD: filename = "Magical Rod.gif"; break;
             case RED_CANDLE: filename = "Red Candle.gif"; break;
             case MAGICAL_KEY: filename = "Magical Key.gif"; break;
-            case SILVER_ARROW: filename = "Silver Arrow.gif"; break;
+            case SILVER_ARROW: filename = "Silver Arrow (Up).gif"; break;
             case BOOK: filename = "Book of Magic.gif"; break;
-            case ZELDA: filename = "Zelda.gif"; break;
+            case ZELDA: basePath = "sprites/NPCs/"; filename = "Princess Zelda.gif"; break;
         }
 
         try {

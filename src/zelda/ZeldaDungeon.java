@@ -19,6 +19,7 @@ public class ZeldaDungeon {
 
     private boolean bossDefeated = false;
     private boolean triforceCollected = false;
+    private Inventory playerInventory; // For item persistence checks
 
     private int mapWidth = 0;
     private int mapHeight = 0;
@@ -86,6 +87,18 @@ public class ZeldaDungeon {
                 room.setStairway(true, rd.stairTargetX, rd.stairTargetY);
             }
 
+            // Set Old Man NPC if defined
+            if (rd.oldManType != null) {
+                DungeonRoom.OldManType omt = DungeonRoom.OldManType.NONE;
+                switch (rd.oldManType) {
+                    case "DOOR_REPAIR": omt = DungeonRoom.OldManType.DOOR_REPAIR; break;
+                    case "GRUMBLE": omt = DungeonRoom.OldManType.GRUMBLE; break;
+                    case "MONEY_OR_LIFE": omt = DungeonRoom.OldManType.MONEY_OR_LIFE; break;
+                    case "HINT": omt = DungeonRoom.OldManType.HINT; break;
+                }
+                room.setOldMan(omt, rd.oldManText, rd.oldManCost);
+            }
+
             if ("TRIFORCE".equals(rd.itemType)) {
                 triforceRoomX = rd.localX;
                 triforceRoomY = rd.localY;
@@ -132,12 +145,14 @@ public class ZeldaDungeon {
         return rooms.get(x + "," + y);
     }
 
+    public void setPlayerInventory(Inventory inv) { this.playerInventory = inv; }
+
     public void setCurrentRoom(int x, int y) {
         currentRoomX = x;
         currentRoomY = y;
         currentRoom = getRoom(x, y);
         if (currentRoom != null) {
-            currentRoom.enter();
+            currentRoom.enter(playerInventory);
         }
     }
 

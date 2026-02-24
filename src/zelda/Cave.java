@@ -3,6 +3,7 @@ package zelda;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.HashMap;
 import javax.imageio.ImageIO;
 
 public class Cave {
@@ -27,9 +28,10 @@ public class Cave {
     private static final int ITEM_W = 12;
     private static final int ITEM_H = 16;
 
-    private static final Color CAVE_BG = new Color(52, 28, 0);
-    private static final Color CAVE_WALL_OUTER = new Color(146, 146, 146);
-    private static final Color CAVE_WALL_INNER = new Color(100, 100, 100);
+    // NES cave palette: $0F=black background, $30=white walls, $00=dark gray, $12=blue accent
+    private static final Color CAVE_BG = Color.BLACK;
+    private static final Color CAVE_WALL = new Color(0x62, 0x62, 0x62); // NES $00 dark gray
+    private static final Color CAVE_FLOOR = new Color(0x72, 0x40, 0x00); // dark brown floor strip
     private static final Color FIRE_COLOR1 = new Color(252, 152, 56);
     private static final Color FIRE_COLOR2 = new Color(252, 216, 108);
 
@@ -41,8 +43,13 @@ public class Cave {
     private CaveData.CaveDef currentCave = null;
     private BufferedImage oldManSprite;
 
+    // Item sprite cache for cave shop/reward rendering
+    private static final HashMap<String, BufferedImage> itemSpriteCache = new HashMap<>();
+    private static boolean itemSpritesLoaded = false;
+
     public Cave() {
         oldManSprite = loadImage("sprites/NPCs/Old Man.gif");
+        loadItemSprites();
     }
 
     private BufferedImage loadImage(String path) {
@@ -51,6 +58,47 @@ public class Cave {
             if (f.exists()) return ImageIO.read(f);
         } catch (Exception e) {}
         return null;
+    }
+
+    private static void loadItemSprites() {
+        if (itemSpritesLoaded) return;
+        itemSpritesLoaded = true;
+        String b = "sprites/Objects/";
+        cacheItem("WOODEN_SWORD", b + "Wooden Sword (Up).gif");
+        cacheItem("WHITE_SWORD", b + "White Sword (Up).gif");
+        cacheItem("MAGICAL_SWORD", b + "Magical Sword (Up).gif");
+        cacheItem("BLUE_RING", b + "Blue Ring.gif");
+        cacheItem("RED_RING", b + "Red Ring.gif");
+        cacheItem("BLUE_CANDLE", b + "Blue Candle.gif");
+        cacheItem("RED_CANDLE", b + "Red Candle.gif");
+        cacheItem("ARROW", b + "Arrow (Up).gif");
+        cacheItem("SILVER_ARROW", b + "Silver Arrow (Up).gif");
+        cacheItem("BOW", b + "Bow.gif");
+        cacheItem("BOOMERANG", b + "Boomerang.gif");
+        cacheItem("MAGICAL_BOOMERANG", b + "Magical Boomerang.gif");
+        cacheItem("BOMB", b + "Bomb.gif");
+        cacheItem("KEY", b + "Key.gif");
+        cacheItem("MAGIC_KEY", b + "Magical Key.gif");
+        cacheItem("SHIELD", b + "Magical Shield.gif");
+        cacheItem("FOOD", b + "Food.gif");
+        cacheItem("LETTER", b + "Letter.gif");
+        cacheItem("RECORDER", b + "Recorder.gif");
+        cacheItem("RAFT", b + "Raft1.gif");
+        cacheItem("LADDER", b + "Stepladder.gif");
+        cacheItem("BRACELET", b + "Power Bracelet.gif");
+        cacheItem("ROD", b + "Magical Rod.gif");
+        cacheItem("BOOK", b + "Book of Magic.gif");
+        cacheItem("HEART_CONTAINER", b + "Heart Container.gif");
+        cacheItem("BLUE_POTION", b + "Life Potion.gif");
+        cacheItem("RED_POTION", b + "Life Potion.gif");
+        cacheItem("SECOND_POTION", b + "2nd Potion.gif");
+    }
+
+    private static void cacheItem(String key, String path) {
+        try {
+            File f = new File(path);
+            if (f.exists()) itemSpriteCache.put(key, ImageIO.read(f));
+        } catch (Exception e) {}
     }
 
     public void enter(ZeldaPlayer player, int roomX, int roomY) {
@@ -165,45 +213,44 @@ public class Cave {
     public void render(Graphics2D g2) {
         frameCounter++;
 
-        // Background
+        // Black void background — NES caves use $0F (black) as BG
         g2.setColor(CAVE_BG);
         g2.fillRect(0, 0, CAVE_WIDTH, CAVE_HEIGHT);
 
-        // NES-style cave walls with arch shape
-        g2.setColor(CAVE_WALL_OUTER);
-        // Top wall
-        g2.fillRect(0, 0, CAVE_WIDTH, 32);
-        // Side walls
-        g2.fillRect(0, 0, 32, CAVE_HEIGHT);
-        g2.fillRect(CAVE_WIDTH - 32, 0, 32, CAVE_HEIGHT);
-        // Inner wall detail
-        g2.setColor(CAVE_WALL_INNER);
-        g2.fillRect(32, 0, CAVE_WIDTH - 64, 24);
-        g2.fillRect(8, 32, 16, CAVE_HEIGHT - 32);
-        g2.fillRect(CAVE_WIDTH - 24, 32, 16, CAVE_HEIGHT - 32);
+        // NES cave: thick gray block walls forming a rectangular room
+        // Wall structure matches NES tile layout (~32px thick borders)
+        int wallL = 32;                  // left wall X
+        int wallR = CAVE_WIDTH - 32;     // right wall X end
+        int wallT = 16;                  // top wall Y
+        int wallB = 160;                 // bottom wall Y end
+        int thick = 32;                  // wall thickness
+        int exitGap = 32;               // exit opening width
 
-        // Cave arch opening (darker inset)
-        g2.setColor(CAVE_BG);
-        g2.fillRect(32, 24, CAVE_WIDTH - 64, CAVE_HEIGHT - 24);
+        // Draw the full rectangular wall frame (dark gray NES $00)
+        g2.setColor(CAVE_WALL);
+        g2.fillRect(wallL, wallT, wallR - wallL, thick);              // top wall
+        g2.fillRect(wallL, wallT, thick, wallB - wallT);              // left wall
+        g2.fillRect(wallR - thick, wallT, thick, wallB - wallT);      // right wall
+        // Bottom wall with exit gap in center
+        int midX = CAVE_WIDTH / 2;
+        g2.fillRect(wallL, wallB - thick, midX - exitGap / 2 - wallL, thick); // bottom-left
+        g2.fillRect(midX + exitGap / 2, wallB - thick, wallR - midX - exitGap / 2, thick); // bottom-right
 
-        // Floor area
-        g2.setColor(new Color(72, 40, 8));
-        g2.fillRect(32, CAVE_HEIGHT - 48, CAVE_WIDTH - 64, 48);
+        // Floor area inside the walls (brown)
+        int floorY = wallB - thick - 32;
+        g2.setColor(CAVE_FLOOR);
+        g2.fillRect(wallL + thick, floorY, wallR - wallL - thick * 2, 32);
 
-        // Exit opening at bottom center
-        g2.setColor(Color.BLACK);
-        g2.fillRect(CAVE_WIDTH / 2 - 16, CAVE_HEIGHT - 8, 32, 8);
-
-        // Fire torches with flickering animation
+        // Fire torches with flickering animation (flanking the Old Man)
         boolean flicker = (frameCounter / 6) % 2 == 0;
         Color fireC = flicker ? FIRE_COLOR1 : FIRE_COLOR2;
         g2.setColor(fireC);
-        g2.fillRect(72, 60, 8, 8);
-        g2.fillRect(176, 60, 8, 8);
+        g2.fillRect(72, 56, 8, 8);
+        g2.fillRect(176, 56, 8, 8);
         // Torch base
-        g2.setColor(CAVE_WALL_INNER);
-        g2.fillRect(73, 68, 6, 4);
-        g2.fillRect(177, 68, 6, 4);
+        g2.setColor(CAVE_WALL);
+        g2.fillRect(73, 64, 6, 4);
+        g2.fillRect(177, 64, 6, 4);
 
         // NPC
         if (oldManSprite != null) {
@@ -241,30 +288,16 @@ public class Cave {
     }
 
     private void renderItemSlot(Graphics2D g2, String itemName, int ix, int iy) {
-        Color c;
-        switch (itemName) {
-            case "WOODEN_SWORD": case "WHITE_SWORD": case "MAGICAL_SWORD":
-                c = new Color(160, 120, 60); break;
-            case "BLUE_RING": c = new Color(60, 60, 220); break;
-            case "RED_RING":  c = Color.RED; break;
-            case "BLUE_CANDLE": case "RED_CANDLE": c = FIRE_COLOR1; break;
-            case "ARROW": case "SILVER_ARROW": c = new Color(200, 200, 200); break;
-            case "BOMB": c = new Color(80, 80, 80); break;
-            case "KEY": case "MAGIC_KEY": c = new Color(220, 180, 60); break;
-            case "SHIELD": c = new Color(100, 100, 200); break;
-            case "FOOD": c = new Color(200, 60, 60); break;
-            case "LETTER": c = new Color(220, 220, 200); break;
-            case "HEART_CONTAINER": c = Color.RED; break;
-            case "BLUE_POTION": c = new Color(60, 60, 220); break;
-            case "RED_POTION": case "SECOND_POTION": c = new Color(220, 60, 60); break;
-            default: c = new Color(200, 200, 60); break;
+        BufferedImage spr = itemSpriteCache.get(itemName);
+        if (spr != null) {
+            int dx = ix + (ITEM_W - spr.getWidth()) / 2;
+            int dy = iy + (ITEM_H - spr.getHeight()) / 2;
+            g2.drawImage(spr, dx, dy, null);
+        } else {
+            // Fallback for money game entries and unknown items
+            g2.setColor(new Color(200, 200, 60));
+            g2.fillRect(ix, iy, ITEM_W, ITEM_H);
         }
-        g2.setColor(c);
-        g2.fillRect(ix, iy, ITEM_W, ITEM_H);
-        // Item name label
-        g2.setColor(Color.WHITE);
-        String label = itemName.length() > 6 ? itemName.substring(0, 6) : itemName;
-        g2.drawString(label, ix - 4, iy - 4);
     }
 
     public boolean isActive() { return active; }

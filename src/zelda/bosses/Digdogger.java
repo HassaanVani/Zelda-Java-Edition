@@ -1,6 +1,7 @@
 package zelda.bosses;
 
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.util.List;
 import zelda.*;
 
@@ -14,16 +15,24 @@ public class Digdogger extends ZeldaEnemy {
     private double vx, vy;
     private int bigWidth = 24, bigHeight = 24;
     private int smallWidth = 12, smallHeight = 12;
+    private BufferedImage bigSprite;
+    private BufferedImage smallSprite;
 
     public Digdogger(double x, double y) {
         super(x, y, 4, 1, AIType.RANDOM);
+        applyStats(EnemyStats.digdogger());
         this.width = bigWidth;
         this.height = bigHeight;
         this.speed = 0.4;
-        this.damage = 2;
         vx = speed;
         vy = speed;
-        sprite = loadSprite("sprites/Bosses/5 - Digdogger.png");
+        loadDigdoggerSprites();
+    }
+
+    private void loadDigdoggerSprites() {
+        bigSprite = loadSprite("sprites/Bosses/5 - Digdogger1.gif");
+        smallSprite = loadSprite("sprites/Bosses/5 - Digdogger2.gif");
+        sprite = bigSprite;
     }
 
     @Override
@@ -78,6 +87,7 @@ public class Digdogger extends ZeldaEnemy {
             width = smallWidth;
             height = smallHeight;
             speed = 1.5;
+            sprite = smallSprite;
             damageTimer = DAMAGE_FLASH_FRAMES;
         }
     }
@@ -92,7 +102,7 @@ public class Digdogger extends ZeldaEnemy {
         if (flash) {
             g2.setColor(Color.WHITE);
             g2.fillOval((int)x, (int)y, width, height);
-        } else if (sprite != null && !shrunk) {
+        } else if (sprite != null) {
             g2.drawImage(sprite, (int)x, (int)y, width, height, null);
         } else {
             Color bodyColor = shrunk ? new Color(200, 100, 40) : new Color(160, 80, 30);

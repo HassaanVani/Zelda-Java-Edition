@@ -144,16 +144,4 @@ public class SaveManager {
         return new File(SAVE_DIR + "save" + slot + ".dat").exists();
     }
 
-    public void incrementDeathCount(int slot) {
-        SaveData data = loadGame(slot);
-        if (data != null) {
-            data.deathCount++;
-            writeSaveFile(slot, data);
-        }
-    }
-
-    public int getDeathCount(int slot) {
-        SaveData data = loadGame(slot);
-        return data != null ? data.deathCount : 0;
-    }
 }

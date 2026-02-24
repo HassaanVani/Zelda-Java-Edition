@@ -1,8 +1,9 @@
 package zelda.bosses;
 
-import zelda.*;
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.util.List;
+import zelda.*;
 
 /**
  * Dodongo: dinosaur boss that can only be damaged by bombs fed into its mouth.
@@ -13,15 +14,25 @@ public class Dodongo extends ZeldaEnemy {
     private int bombsEaten = 0;
     private static final int BOMBS_TO_KILL = 2;
     private int stunTimer = 0;
+    private BufferedImage frontSprite;
+    private BufferedImage backSprite;
+    private BufferedImage leftSprite;
 
     public Dodongo(double x, double y) {
         super(x, y, 4, 1, AIType.RANDOM);
+        applyStats(EnemyStats.dodongo());
         this.width = 24;
         this.height = 16;
         this.speed = 0.6;
-        this.damage = 2;
         this.direction = (int)(Math.random() * 4);
-        sprite = loadSprite("sprites/Bosses/2 - Dodongo.png");
+        loadDodongoSprites();
+    }
+
+    private void loadDodongoSprites() {
+        frontSprite = loadSprite("sprites/Bosses/2 - Dodongo (Front).gif");
+        backSprite = loadSprite("sprites/Bosses/2 - Dodongo (Back).gif");
+        leftSprite = loadSprite("sprites/Bosses/2 - Dodongo (Left).gif");
+        sprite = frontSprite;
     }
 
     @Override
@@ -72,6 +83,22 @@ public class Dodongo extends ZeldaEnemy {
         } else {
             direction = (direction + 1 + (int)(Math.random() * 3)) % 4;
         }
+
+        // Update sprite based on direction
+        switch (direction) {
+            case 0: // up (back)
+                sprite = backSprite;
+                break;
+            case 1: // left
+                sprite = leftSprite;
+                break;
+            case 2: // down (front)
+                sprite = frontSprite;
+                break;
+            case 3: // right (flip left)
+                sprite = leftSprite; // will flip in render
+                break;
+        }
     }
 
     @Override
@@ -86,7 +113,12 @@ public class Dodongo extends ZeldaEnemy {
             g2.setColor(Color.WHITE);
             g2.fillRect((int)x, (int)y, width, height);
         } else if (sprite != null) {
-            g2.drawImage(sprite, (int)x, (int)y, width, height, null);
+            if (direction == 3 && leftSprite != null) {
+                // Flip horizontally for right-facing
+                g2.drawImage(sprite, (int)x + width, (int)y, -width, height, null);
+            } else {
+                g2.drawImage(sprite, (int)x, (int)y, width, height, null);
+            }
         } else {
             g2.setColor(new Color(120, 80, 40));
             g2.fillRect((int)x, (int)y, width, height);

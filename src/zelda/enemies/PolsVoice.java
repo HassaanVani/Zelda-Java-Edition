@@ -16,7 +16,7 @@ public class PolsVoice extends ZeldaEnemy {
         applyStats(EnemyStats.polsVoice());
         vx = (Math.random() < 0.5 ? -1 : 1) * speed;
         vy = (Math.random() < 0.5 ? -1 : 1) * speed;
-        sprite = loadSprite("sprites/Enemies/PolsVoice.png");
+        sprite = loadSprite("sprites/Enemies/Pols Voice.gif");
     }
 
     @Override

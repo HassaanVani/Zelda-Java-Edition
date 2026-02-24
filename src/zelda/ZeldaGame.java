@@ -2,11 +2,14 @@ package zelda;
 
 import engine.KeyHandler;
 import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import javax.imageio.ImageIO;
 
 public class ZeldaGame {
     public enum GameState {
         TITLE_SCREEN, PLAYING, PAUSED, GAME_OVER, GAME_WIN, ROOM_TRANSITION, CAVE, DUNGEON,
-        FADE_OUT, FADE_IN, CAVE_WALK_IN
+        FADE_OUT, FADE_IN, CAVE_WALK_IN, ITEM_GET
     }
 
     public static final int SCREEN_WIDTH = 256;
@@ -32,18 +35,27 @@ public class ZeldaGame {
     private static final int DEATH_ANIM_DURATION = 90;
     private static final int FADE_DURATION = 16;
 
-    private static final String SFX_SWORD = "04. Small Item Get.wav"; // Closest match
-    private static final String SFX_ENEMY_HIT = "04. Small Item Get.wav";
-    private static final String SFX_ENEMY_DIE = "04. Small Item Get.wav";
-    private static final String SFX_HURT = "04. Small Item Get.wav";
-    private static final String SFX_ITEM = "04. Small Item Get.wav";
-    private static final String SFX_KEY = "06. Secret.wav";
-    private static final String SFX_DOOR = "05. Discovery.wav";
+    private static final String SFX_SWORD = "Sword Blast.wav";
+    private static final String SFX_ENEMY_HIT = "Beast Hit.wav";
+    private static final String SFX_ENEMY_DIE = "Enemy Killed.wav";
+    private static final String SFX_HURT = "Link Hurt.wav";
+    private static final String SFX_ITEM = "Item Get.wav";
+    private static final String SFX_KEY = "Key Appear.wav";
+    private static final String SFX_DOOR = "Door Unlocked.wav";
     private static final String SFX_FANFARE = "07. Collect Item.wav";
-    private static final String SFX_STAIRS = "06. Secret.wav";
+    private static final String SFX_STAIRS = "Stairs.wav";
     private static final String SFX_TRIFORCE = "09. Triforce Shard Collected.wav";
-    private static final String SFX_FLUTE = "08 Flute.wav";
-    private static final String SFX_LINK_DIES = "10. Link Dies.wav";
+    private static final String SFX_FLUTE = "Flute.wav";
+    private static final String SFX_LINK_DIES = "Link Die.wav";
+    private static final String SFX_EXPLOSION = "Explosion.wav";
+    private static final String SFX_SHIELD = "Shield Deflect.wav";
+    private static final String SFX_BOOMERANG = "Boomerang.wav";
+    private static final String SFX_ARROW = "Arrow Fire.wav";
+    private static final String SFX_HEART = "Heart Pickup.wav";
+    private static final String SFX_RUPEE = "Rupee - Cursor.wav";
+    private static final String SFX_SECRET = "Secret Unlocked.wav";
+    private static final String SFX_BOSS_ROAR = "Boss Roar.wav";
+    private static final String SFX_BOSS_DEAD = "Boss Defeated.wav";
 
     private static final String MUSIC_TITLE = "01. Title Screen.wav";
     private static final String MUSIC_OVERWORLD = "02. Overworld of Hyrule.wav";
@@ -112,6 +124,16 @@ public class ZeldaGame {
     private double caveEntranceX, caveEntranceY; // target position for walk-in
     private Runnable caveWalkCallback; // what to do after walk completes
 
+    // Overworld exit position — where the player returns to when leaving cave/dungeon
+    private double overworldExitX, overworldExitY;
+
+    // Item Get animation state
+    private boolean itemGetActive = false;
+    private int itemGetTimer = 0;
+    private Item.ItemType itemGetType = null;
+    private GameState itemGetReturnState = GameState.PLAYING;
+    private static final int ITEM_GET_DURATION = 180; // ~3 seconds at 60fps
+
     // Dungeon entrance locations (roomX, roomY) for dungeons 1-9
     private static final int[][] DUNGEON_ENTRANCES = {
         {7, 3}, {12, 3}, {4, 4}, {5, 2}, {10, 1},
@@ -121,6 +143,8 @@ public class ZeldaGame {
     public ZeldaGame(KeyHandler keyHandler) {
         this.keyHandler = keyHandler;
         audioManager = new AudioManager();
+        ZeldaRoom.setAudioManager(audioManager);
+        DungeonRoom.setAudioManager(audioManager);
         saveManager = new SaveManager();
         combatManager = new CombatManager();
         itemDropSystem = new ItemDropSystem();
@@ -145,6 +169,7 @@ public class ZeldaGame {
             case GAME_OVER: updateGameOver(); break;
             case GAME_WIN: updateGameWin(); break;
             case CAVE_WALK_IN: updateCaveWalkIn(); break;
+            case ITEM_GET: updateItemGet(); break;
             case FADE_OUT: case FADE_IN: updateFade(); break;
         }
     }
@@ -253,13 +278,21 @@ public class ZeldaGame {
         checkDungeonEntrance();
 
         if (!godMode) {
-            int cx = (int)(player.getWorldX() + ZeldaPlayer.WIDTH / 2);
-            int cy = (int)(player.getWorldY() + ZeldaPlayer.HEIGHT / 2);
+            // 4-corner collision check using shrunken hitbox (matches getHitbox() +2 inset)
+            int left = (int)player.getWorldX() + 2;
+            int right = left + ZeldaPlayer.WIDTH - 5;
+            int top = (int)player.getWorldY() + 2;
+            int bottom = top + ZeldaPlayer.HEIGHT - 5;
 
-            if (!room.isWalkable(cx, cy)) {
+            boolean blocked = !room.isWalkable(left, top) || !room.isWalkable(right, top)
+                           || !room.isWalkable(left, bottom) || !room.isWalkable(right, bottom);
+
+            if (blocked) {
                 // Stepladder: auto-bridge 1-tile water/pit gaps
                 boolean ladderCross = false;
                 if (player.getInventory().hasLadder()) {
+                    int cx = (int)(player.getWorldX() + ZeldaPlayer.WIDTH / 2);
+                    int cy = (int)(player.getWorldY() + ZeldaPlayer.HEIGHT / 2);
                     TileType currentTile = room.getTileAt(cx, cy);
                     if (currentTile == TileType.WATER || currentTile == TileType.PIT) {
                         // Check if tile beyond the gap (in facing direction) is walkable
@@ -277,11 +310,17 @@ public class ZeldaGame {
                 }
                 if (!ladderCross) {
                     player.revertPosition();
+                    player.resetMoving();
                 }
             }
         }
 
         player.clampToPlayArea();
+
+        // If position didn't actually change this frame (wall, edge, clamp), stop walk animation
+        if (!player.hasActuallyMoved()) {
+            player.resetMoving();
+        }
 
         if (!godMode) {
             combatManager.checkCombat(player, room, audioManager);
@@ -436,10 +475,13 @@ public class ZeldaGame {
         if (room.hasCaveEntrance()) {
             int caveTX = room.getCaveTileX();
             int caveTY = room.getCaveTileY();
+            if (caveTX < 0 || caveTY < 0) return; // entrance position unknown
             boolean atEntrance = Math.abs(tileX - caveTX) <= 1 && Math.abs(tileY - caveTY) <= 1;
             if (atEntrance && keyHandler.upPressed) {
                 audioManager.playSFX(SFX_STAIRS);
-                // Walk-in animation: Link walks up into cave, then fade to cave interior
+                // Store exit position: 1 tile below entrance
+                overworldExitX = caveTX * ZeldaRoom.TILE_SIZE + 4;
+                overworldExitY = (caveTY + 1) * ZeldaRoom.TILE_SIZE;
                 startCaveWalkIn(caveTX * ZeldaRoom.TILE_SIZE + 4, (caveTY - 1) * ZeldaRoom.TILE_SIZE, () -> {
                     cave.enter(player, overworld.getCurrentRoomX(), overworld.getCurrentRoomY());
                     state = GameState.CAVE;
@@ -457,6 +499,9 @@ public class ZeldaGame {
                                 && Math.abs(tileY - secret.tileY) <= 1;
                 if (atSecret && keyHandler.upPressed) {
                     audioManager.playSFX(SFX_STAIRS);
+                    // Store exit position: 1 tile below entrance
+                    overworldExitX = secret.tileX * ZeldaRoom.TILE_SIZE + 4;
+                    overworldExitY = (secret.tileY + 1) * ZeldaRoom.TILE_SIZE;
                     final int caveId = secret.revealedCaveId;
                     startCaveWalkIn(secret.tileX * ZeldaRoom.TILE_SIZE + 4, (secret.tileY - 1) * ZeldaRoom.TILE_SIZE, () -> {
                         cave.enterById(player, caveId);
@@ -513,6 +558,9 @@ public class ZeldaGame {
         boolean atEntrance = Math.abs(tileX - entranceTileX) <= 1 && Math.abs(tileY - entranceTileY) <= 1;
 
         if (atEntrance && keyHandler.upPressed) {
+            // Store exit position: 1 tile below dungeon entrance
+            overworldExitX = entranceTileX * ZeldaRoom.TILE_SIZE + 4;
+            overworldExitY = (entranceTileY + 1) * ZeldaRoom.TILE_SIZE;
             final int level = room.getDungeonId();
             startFadeOut(() -> {
                 enterDungeon(level);
@@ -530,6 +578,7 @@ public class ZeldaGame {
 
         dungeonRenderer.setDungeonLevel(level);
         currentDungeon = new ZeldaDungeon(level, "LEVEL-" + level);
+        currentDungeon.setPlayerInventory(player.getInventory());
         currentDungeon.initialize(dungeonRenderer, overworld.getCollisionMap());
         currentDungeon.setItemDropSystem(itemDropSystem);
         player.setPosition(ZeldaDungeon.ENTRANCE_SPAWN_X, ZeldaDungeon.ENTRANCE_SPAWN_Y);
@@ -548,7 +597,8 @@ public class ZeldaGame {
             hud.setDungeon(null);
             currentDungeon = null;
 
-            player.setPosition(PLAYER_START_X, PLAYER_START_Y);
+            // Return player to overworld at the dungeon entrance they entered from
+            player.setPosition(overworldExitX, overworldExitY);
             state = GameState.PLAYING;
             startFadeIn();
         });
@@ -562,6 +612,22 @@ public class ZeldaGame {
 
         player.update();
 
+        // Dungeon wall collision check
+        if (currentDungeon != null && currentDungeon.getCurrentRoom() != null) {
+            DungeonRoom dRoom = currentDungeon.getCurrentRoom();
+            int left = (int)player.getWorldX() + 2;
+            int right = left + ZeldaPlayer.WIDTH - 5;
+            int top = (int)player.getWorldY() + 2;
+            int bottom = top + ZeldaPlayer.HEIGHT - 5;
+
+            boolean blocked = !dRoom.isWalkable(left, top) || !dRoom.isWalkable(right, top)
+                           || !dRoom.isWalkable(left, bottom) || !dRoom.isWalkable(right, bottom);
+            if (blocked) {
+                player.revertPosition();
+                player.resetMoving();
+            }
+        }
+
         if (currentDungeon != null && currentDungeon.getCurrentRoom() != null) {
             DungeonRoom room = currentDungeon.getCurrentRoom();
             room.update(player);
@@ -573,7 +639,7 @@ public class ZeldaGame {
             if (room.isDark() && !room.isLit()) {
                 for (Projectile p : room.getProjectiles()) {
                     if (p.isActive() && p.isPlayerProjectile() && p.getColor() != null
-                            && p.getColor().equals(java.awt.Color.ORANGE)) {
+                            && p.getColor().equals(Color.ORANGE)) {
                         room.lightRoom();
                         break;
                     }
@@ -583,7 +649,7 @@ public class ZeldaGame {
             // Bomb projectiles try to open bombable walls
             for (Projectile p : room.getProjectiles()) {
                 if (p.isActive() && p.isPlayerProjectile() && !p.isMoving()
-                        && p.getColor() != null && p.getColor().equals(java.awt.Color.DARK_GRAY)) {
+                        && p.getColor() != null && p.getColor().equals(Color.DARK_GRAY)) {
                     room.tryBombWalls(p);
                 }
             }
@@ -596,6 +662,13 @@ public class ZeldaGame {
                         ((zelda.bosses.Digdogger) e).shrink();
                     }
                 }
+            }
+
+            // Check for item-get animation trigger
+            Item.ItemType pendingItemGet = room.consumePendingItemGet();
+            if (pendingItemGet != null) {
+                startItemGet(pendingItemGet);
+                return;
             }
 
             // Check ZELDA rescue (Level 9 win condition)
@@ -643,6 +716,11 @@ public class ZeldaGame {
             }
 
             checkDungeonRoomTransition();
+        }
+
+        // If position didn't actually change this frame, stop walk animation
+        if (!player.hasActuallyMoved()) {
+            player.resetMoving();
         }
 
         // Low health warning beep in dungeon
@@ -714,15 +792,87 @@ public class ZeldaGame {
         renderPlaying(g2);
     }
 
+    /** Start the item-get freeze-frame animation for special items. */
+    public void startItemGet(Item.ItemType type) {
+        itemGetActive = true;
+        itemGetTimer = ITEM_GET_DURATION;
+        itemGetType = type;
+        itemGetReturnState = state;
+        state = GameState.ITEM_GET;
+        audioManager.playSFX(SFX_FANFARE);
+    }
+
+    private void updateItemGet() {
+        itemGetTimer--;
+        if (itemGetTimer <= 0) {
+            itemGetActive = false;
+            state = itemGetReturnState;
+        }
+    }
+
+    private void renderItemGet(Graphics2D g2) {
+        // Render underlying scene (frozen)
+        if (itemGetReturnState == GameState.DUNGEON) {
+            renderDungeon(g2);
+        } else if (itemGetReturnState == GameState.CAVE) {
+            renderCave(g2);
+        } else {
+            renderPlaying(g2);
+        }
+
+        // Draw Link holding item above head
+        int linkX = (int) player.getWorldX();
+        int linkY = HUD_HEIGHT + (int) player.getWorldY();
+
+        // Link body (standing, facing down)
+        g2.setColor(new Color(0, 140, 0));
+        g2.fillRect(linkX, linkY, ZeldaPlayer.WIDTH, ZeldaPlayer.HEIGHT);
+
+        // Item held above head
+        int itemX = linkX + ZeldaPlayer.WIDTH / 2 - 6;
+        int itemY = linkY - 14;
+        Color itemColor = getItemColor(itemGetType);
+        g2.setColor(itemColor);
+        g2.fillRect(itemX, itemY, 12, 12);
+
+        // Item outline
+        g2.setColor(Color.WHITE);
+        g2.drawRect(itemX, itemY, 12, 12);
+    }
+
+    private Color getItemColor(Item.ItemType type) {
+        if (type == null) return Color.YELLOW;
+        switch (type) {
+            case HEART_CONTAINER: return Color.RED;
+            case TRIFORCE: return new Color(255, 215, 0);
+            case MAP: return new Color(100, 100, 200);
+            case COMPASS: return new Color(200, 60, 60);
+            case BOSS_KEY: return new Color(255, 255, 100);
+            case KEY: return Color.YELLOW;
+            case BOW: return new Color(160, 100, 40);
+            case BOOMERANG: case MAGICAL_BOOMERANG: return Color.CYAN;
+            case RAFT: return new Color(139, 90, 43);
+            case STEPLADDER: return new Color(180, 120, 60);
+            case RECORDER: return new Color(100, 200, 100);
+            case MAGICAL_ROD: return new Color(200, 100, 200);
+            case RED_CANDLE: return Color.RED;
+            case MAGICAL_KEY: return new Color(255, 215, 0);
+            case SILVER_ARROW: return Color.WHITE;
+            case BOOK: return new Color(180, 60, 60);
+            default: return Color.YELLOW;
+        }
+    }
+
     private void updateCave() {
         player.update();
         boolean exited = cave.update(player);
         if (exited) {
-            if (cave.isSwordTaken()) {
-                audioManager.playSFX(SFX_FANFARE);
-            }
-            player.setPosition(PLAYER_START_X, PLAYER_START_Y);
+            // Return player to overworld at the entrance position they entered from
+            player.setPosition(overworldExitX, overworldExitY);
             state = GameState.PLAYING;
+            if (cave.isSwordTaken()) {
+                startItemGet(Item.ItemType.SWORD);
+            }
         }
     }
 
@@ -867,15 +1017,21 @@ public class ZeldaGame {
     private void updateGameWin() {
         winScreenTimer++;
 
-        // Switch from rescue theme to ending theme after a few seconds
+        // Switch from rescue theme to ending theme after rescue scene
         if (winScreenTimer == 300) {
             audioManager.stopMusic();
             audioManager.playMusicOnce(MUSIC_ENDING);
         }
 
-        if (winScreenTimer > 60 && (keyHandler.startPressed || keyHandler.enterPressed)) {
-            // Return to title screen after winning
+        // Allow starting second quest after full ending display
+        if (winScreenTimer > 420 && (keyHandler.startPressed || keyHandler.enterPressed)) {
+            if (winSecondQuestPrompt) {
+                // Start second quest
+                player.getInventory().setSecondQuest(true);
+                saveCurrentGame();
+            }
             winScreenTimer = 0;
+            winSecondQuestPrompt = false;
             currentDungeon = null;
             hud.setInDungeon(false, 0);
             hud.setDungeon(null);
@@ -883,15 +1039,35 @@ public class ZeldaGame {
             audioManager.stopMusic();
             audioManager.playMusic(MUSIC_TITLE);
         }
+
+        // Show second quest prompt after all text
+        if (winScreenTimer > 400) winSecondQuestPrompt = true;
     }
 
     private int winScreenTimer = 0;
+    private boolean winSecondQuestPrompt = false;
+    private BufferedImage zeldaSprite = null;
+    private BufferedImage zeldaTriforceSprite = null;
+
+    private BufferedImage loadWinSprite(String path) {
+        try {
+            File f = new File(path);
+            if (f.exists()) return ImageIO.read(f);
+        } catch (Exception ex) {}
+        return null;
+    }
 
     private void renderGameWin(Graphics2D g2) {
+        // Lazy-load Zelda sprites
+        if (zeldaSprite == null) {
+            zeldaSprite = loadWinSprite("sprites/NPCs/Princess Zelda.gif");
+            zeldaTriforceSprite = loadWinSprite("sprites/NPCs/Princess Zelda - Triforce.gif");
+        }
+
         g2.setColor(Color.BLACK);
         g2.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-        // Phase 1: Screen brightens (0-60 frames)
+        // Phase 1: Ganon defeated flash (0-60 frames)
         if (winScreenTimer < 60) {
             int brightness = (int)(winScreenTimer * 4.25);
             g2.setColor(new Color(brightness, brightness, brightness, 100));
@@ -899,67 +1075,104 @@ public class ZeldaGame {
             return;
         }
 
-        // Golden triforce display (pulsing glow)
-        int triCX = SCREEN_WIDTH / 2;
-        int triTopY = 20;
-        int triSize = 36;
-        int phase = (winScreenTimer / 8) % 3;
-        Color triColor;
-        switch (phase) {
-            case 0: triColor = new Color(255, 250, 180); break;
-            case 1: triColor = new Color(240, 220, 60); break;
-            default: triColor = new Color(255, 215, 0); break;
+        // Phase 2: Rescue scene (60-300) — Link and Zelda with triforce
+        int cx = SCREEN_WIDTH / 2;
+
+        // Draw Zelda sprite
+        int zeldaX = cx - 8;
+        int zeldaY = 60;
+        BufferedImage zSpr = (winScreenTimer > 180) ? zeldaTriforceSprite : zeldaSprite;
+        if (zSpr != null) {
+            g2.drawImage(zSpr, zeldaX, zeldaY, 16, 16, null);
+        } else {
+            g2.setColor(new Color(255, 128, 200));
+            g2.fillRect(zeldaX, zeldaY, 16, 16);
         }
-        g2.setColor(triColor);
-        int[] tx = {triCX, triCX - triSize, triCX + triSize};
-        int[] ty = {triTopY, triTopY + triSize * 2, triTopY + triSize * 2};
-        g2.fillPolygon(tx, ty, 3);
 
-        // Inner black triangle (triforce gap)
-        g2.setColor(Color.BLACK);
-        int innerSize = triSize / 2;
-        int[] ix = {triCX, triCX - innerSize, triCX + innerSize};
-        int innerTopY = triTopY + triSize;
-        int[] iy = {innerTopY, innerTopY + innerSize, innerTopY + innerSize};
-        g2.fillPolygon(ix, iy, 3);
+        // Draw Link facing Zelda
+        Image linkSprite = (player != null) ? player.getWalkSprite(ZeldaPlayer.DIR_UP) : null;
+        int linkX = cx - 8;
+        int linkY = 90;
+        if (linkSprite != null) {
+            g2.drawImage(linkSprite, linkX, linkY, 16, 16, null);
+        } else {
+            g2.setColor(new Color(0, 140, 0));
+            g2.fillRect(linkX, linkY, 16, 16);
+        }
 
-        // Story text (scrolls in after triforce appears)
-        g2.setFont(new Font("Monospaced", Font.BOLD, 10));
-        g2.setColor(new Color(240, 220, 60));
-        String msg1 = "CONGRATULATIONS!";
-        int w1 = g2.getFontMetrics().stringWidth(msg1);
-        g2.drawString(msg1, (SCREEN_WIDTH - w1) / 2, 105);
-
+        // "THANKS LINK, YOU'RE THE HERO OF HYRULE"
+        g2.setFont(new Font("Monospaced", Font.BOLD, 8));
         g2.setColor(Color.WHITE);
-        g2.setFont(new Font("Monospaced", Font.PLAIN, 8));
 
-        String[] storyLines = {
-            "YOU RESCUED ZELDA!",
-            "",
+        String[] rescueLines = {
             "THANKS LINK, YOU'RE",
-            "THE HERO OF HYRULE.",
-            "",
-            "FINALLY, PEACE RETURNS",
-            "TO HYRULE. THIS ENDS",
-            "THE STORY."
+            "THE HERO OF HYRULE."
         };
-
-        int textStartY = 120;
-        int lineH = 12;
-        // Reveal lines gradually
-        int linesVisible = Math.min(storyLines.length, (winScreenTimer - 60) / 30);
-        for (int i = 0; i < linesVisible; i++) {
-            int sw = g2.getFontMetrics().stringWidth(storyLines[i]);
-            g2.drawString(storyLines[i], (SCREEN_WIDTH - sw) / 2, textStartY + i * lineH);
+        int rescueY = 115;
+        int revealedChars = Math.max(0, (winScreenTimer - 90) / 2);
+        int charsSoFar = 0;
+        for (String line : rescueLines) {
+            int lineChars = Math.min(line.length(), Math.max(0, revealedChars - charsSoFar));
+            if (lineChars > 0) {
+                String partial = line.substring(0, lineChars);
+                int sw = g2.getFontMetrics().stringWidth(partial);
+                g2.drawString(partial, (SCREEN_WIDTH - g2.getFontMetrics().stringWidth(line)) / 2, rescueY);
+            }
+            charsSoFar += line.length();
+            rescueY += 12;
         }
 
-        // Flashing "PRESS START" after all text shown
-        if (linesVisible >= storyLines.length && (winScreenTimer / 20) % 2 == 0) {
+        // Phase 3: Triforce + ending text (300+)
+        if (winScreenTimer >= 300) {
+            // Golden triforce display
+            int triTopY = 150;
+            int triSize = 20;
+            int phase = (winScreenTimer / 8) % 3;
+            Color triColor;
+            switch (phase) {
+                case 0: triColor = new Color(255, 250, 180); break;
+                case 1: triColor = new Color(240, 220, 60); break;
+                default: triColor = new Color(255, 215, 0); break;
+            }
+            g2.setColor(triColor);
+            int[] tpx = {cx, cx - triSize, cx + triSize};
+            int[] tpy = {triTopY, triTopY + triSize * 2, triTopY + triSize * 2};
+            g2.fillPolygon(tpx, tpy, 3);
+
+            // Inner gap
+            g2.setColor(Color.BLACK);
+            int innerSize = triSize / 2;
+            int[] ipx = {cx, cx - innerSize, cx + innerSize};
+            int innerY = triTopY + triSize;
+            int[] ipy = {innerY, innerY + innerSize, innerY + innerSize};
+            g2.fillPolygon(ipx, ipy, 3);
+
+            // Ending story text
+            g2.setFont(new Font("Monospaced", Font.PLAIN, 8));
+            g2.setColor(Color.WHITE);
+            String[] storyLines = {
+                "FINALLY, PEACE RETURNS",
+                "TO HYRULE.",
+                "",
+                "ANOTHER QUEST WILL",
+                "START FROM HERE."
+            };
+
+            int storyY = 195;
+            int linesVisible = Math.min(storyLines.length, (winScreenTimer - 300) / 20);
+            for (int i = 0; i < linesVisible; i++) {
+                int sw = g2.getFontMetrics().stringWidth(storyLines[i]);
+                g2.drawString(storyLines[i], (SCREEN_WIDTH - sw) / 2, storyY + i * 10);
+            }
+        }
+
+        // Flashing "PUSH START" after all text shown
+        if (winSecondQuestPrompt && (winScreenTimer / 20) % 2 == 0) {
             g2.setColor(new Color(100, 200, 100));
             g2.setFont(new Font("Monospaced", Font.PLAIN, 8));
-            String msg3 = "PRESS START";
-            int w3 = g2.getFontMetrics().stringWidth(msg3);
-            g2.drawString(msg3, (SCREEN_WIDTH - w3) / 2, 228);
+            String msg = "PUSH START";
+            int w = g2.getFontMetrics().stringWidth(msg);
+            g2.drawString(msg, (SCREEN_WIDTH - w) / 2, 232);
         }
     }
 
@@ -984,6 +1197,7 @@ public class ZeldaGame {
             case GAME_OVER: renderGameOver(g2); break;
             case GAME_WIN: renderGameWin(g2); break;
             case CAVE_WALK_IN: renderCaveWalkIn(g2); break;
+            case ITEM_GET: renderItemGet(g2); break;
             case FADE_OUT: case FADE_IN: renderFade(g2); break;
         }
     }
@@ -1053,20 +1267,20 @@ public class ZeldaGame {
 
         switch (transitionDir) {
             case 0: // Link went UP: old room slides DOWN, new room enters from TOP
-                scrollOffset = (int)(t * PLAY_AREA_H);
+                scrollOffset = (int)(t * ZeldaRoom.ROOM_PIXEL_H);
                 g2.translate(0, scrollOffset);
                 renderOldRoom(g2);
-                g2.translate(0, -PLAY_AREA_H);
+                g2.translate(0, -ZeldaRoom.ROOM_PIXEL_H);
                 if (room != null) room.render(g2);
-                g2.translate(0, PLAY_AREA_H - scrollOffset);
+                g2.translate(0, ZeldaRoom.ROOM_PIXEL_H - scrollOffset);
                 break;
             case 2: // Link went DOWN: old room slides UP, new room enters from BOTTOM
-                scrollOffset = (int)(t * PLAY_AREA_H);
+                scrollOffset = (int)(t * ZeldaRoom.ROOM_PIXEL_H);
                 g2.translate(0, -scrollOffset);
                 renderOldRoom(g2);
-                g2.translate(0, PLAY_AREA_H);
+                g2.translate(0, ZeldaRoom.ROOM_PIXEL_H);
                 if (room != null) room.render(g2);
-                g2.translate(0, -PLAY_AREA_H + scrollOffset);
+                g2.translate(0, -ZeldaRoom.ROOM_PIXEL_H + scrollOffset);
                 break;
             case 1: // Link went RIGHT: old room slides LEFT, new room enters from RIGHT
                 scrollOffset = (int)(t * SCREEN_WIDTH);
@@ -1127,18 +1341,48 @@ public class ZeldaGame {
                 NESPalette.DEATH_BG2.getBlue(), alpha));
             g2.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-            // Spinning Link outline
+            // Spinning Link: cycle through 4 directional sprites (down→left→up→right)
             if (player != null && t < 0.8f) {
-                int cx = (int)(player.getWorldX() + ZeldaPlayer.WIDTH / 2);
-                int cy = HUD_HEIGHT + (int)(player.getWorldY() + ZeldaPlayer.HEIGHT / 2);
-                double angle = deathSpinFrame * Math.PI / 2;
-                Graphics2D g2r = (Graphics2D)g2.create();
-                g2r.rotate(angle, cx, cy);
-                // Draw Link outline during spin
-                g2r.setColor(new Color(255, 255, 255, Math.max(0, 255 - (int)(t * 400))));
-                g2r.fillRect(cx - ZeldaPlayer.WIDTH / 2, cy - ZeldaPlayer.HEIGHT / 2,
-                    ZeldaPlayer.WIDTH, ZeldaPlayer.HEIGHT);
-                g2r.dispose();
+                int drawX = (int) player.getWorldX();
+                int drawY = HUD_HEIGHT + (int) player.getWorldY();
+                // NES death spin order: down(2), left(1), up(0), right(3)
+                int[] spinOrder = {ZeldaPlayer.DIR_DOWN, ZeldaPlayer.DIR_LEFT,
+                                   ZeldaPlayer.DIR_UP, ZeldaPlayer.DIR_RIGHT};
+                int spriteDir = spinOrder[deathSpinFrame % 4];
+                Image linkSprite = player.getWalkSprite(spriteDir);
+
+                // NES color flash: cycle red/blue/green tints
+                int flashPhase = deathSpinFrame % 3;
+                Color tintColor;
+                switch (flashPhase) {
+                    case 0: tintColor = new Color(255, 60, 60, 120); break;   // red
+                    case 1: tintColor = new Color(60, 60, 255, 120); break;   // blue
+                    default: tintColor = new Color(60, 255, 60, 120); break;  // green
+                }
+
+                int fadeAlpha = Math.max(0, 255 - (int)(t * 400));
+                if (linkSprite != null && fadeAlpha > 0) {
+                    Composite oldComp = g2.getComposite();
+                    g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,
+                        fadeAlpha / 255.0f));
+                    boolean flipH = (spriteDir == ZeldaPlayer.DIR_RIGHT);
+                    if (flipH) {
+                        g2.drawImage(linkSprite, drawX + ZeldaPlayer.WIDTH, drawY,
+                            -ZeldaPlayer.WIDTH, ZeldaPlayer.HEIGHT, null);
+                    } else {
+                        g2.drawImage(linkSprite, drawX, drawY,
+                            ZeldaPlayer.WIDTH, ZeldaPlayer.HEIGHT, null);
+                    }
+                    // Color tint overlay
+                    g2.setColor(tintColor);
+                    g2.fillRect(drawX, drawY, ZeldaPlayer.WIDTH, ZeldaPlayer.HEIGHT);
+                    g2.setComposite(oldComp);
+                } else if (fadeAlpha > 0) {
+                    // Fallback: colored rectangle if no sprite loaded
+                    g2.setColor(new Color(tintColor.getRed(), tintColor.getGreen(),
+                        tintColor.getBlue(), fadeAlpha));
+                    g2.fillRect(drawX, drawY, ZeldaPlayer.WIDTH, ZeldaPlayer.HEIGHT);
+                }
             }
             return;
         }

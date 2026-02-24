@@ -35,6 +35,13 @@ public abstract class ZeldaEnemy {
     protected int dropClass = 0;
     protected boolean frontShield = false;
 
+    // Knockback system: enemies slide away from damage source
+    protected double knockbackDX = 0;
+    protected double knockbackDY = 0;
+    protected int knockbackRemaining = 0;
+    public static final int ENEMY_KNOCKBACK_DISTANCE = 16; // NES: 8 frames × 2px = 16px
+    public static final double ENEMY_KNOCKBACK_SPEED = 2.0;
+
     protected BufferedImage sprite;
 
     public ZeldaEnemy(double x, double y, int health, AIType aiType) {
@@ -79,6 +86,50 @@ public abstract class ZeldaEnemy {
         invulnerableFrames = DEFAULT_INVULN;
         if (health <= 0) active = false;
     }
+
+    /** Damage with knockback away from the source position. */
+    public void damage(int amount, double sourceX, double sourceY) {
+        if (invulnerableFrames > 0) return;
+        health -= amount;
+        damageTimer = DAMAGE_FLASH_FRAMES;
+        invulnerableFrames = DEFAULT_INVULN;
+        if (health <= 0) {
+            active = false;
+            return;
+        }
+        // Calculate knockback direction away from source
+        double dx = x - sourceX;
+        double dy = y - sourceY;
+        double dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 0) {
+            knockbackDX = (dx / dist) * ENEMY_KNOCKBACK_SPEED;
+            knockbackDY = (dy / dist) * ENEMY_KNOCKBACK_SPEED;
+            knockbackRemaining = ENEMY_KNOCKBACK_DISTANCE;
+        }
+    }
+
+    /** Process knockback movement. Returns true if currently in knockback (skip AI). */
+    public boolean processKnockback() {
+        if (knockbackRemaining <= 0) return false;
+        // Tick timers that normally run in update()
+        if (damageTimer > 0) damageTimer--;
+        if (invulnerableFrames > 0) invulnerableFrames--;
+        // Slide
+        x += knockbackDX;
+        y += knockbackDY;
+        knockbackRemaining -= (int) ENEMY_KNOCKBACK_SPEED;
+        if (knockbackRemaining <= 0) {
+            knockbackRemaining = 0;
+            knockbackDX = 0;
+            knockbackDY = 0;
+        }
+        // Clamp to room bounds
+        x = Math.max(8, Math.min(x, ZeldaRoom.ROOM_PIXEL_W - width - 8));
+        y = Math.max(8, Math.min(y, ZeldaRoom.ROOM_PIXEL_H - height - 8));
+        return true;
+    }
+
+    public boolean isKnockedBack() { return knockbackRemaining > 0; }
 
     protected void randomMove(ZeldaRoom room) {
         moveTimer--;
@@ -131,7 +182,6 @@ public abstract class ZeldaEnemy {
     public int getMaxHealth() { return maxHealth; }
     public boolean isActive() { return active; }
     public int getDirection() { return direction; }
-    public int getImmunityMask() { return immunityMask; }
     public int getDropClass() { return dropClass; }
     public boolean hasFrontShield() { return frontShield; }
 

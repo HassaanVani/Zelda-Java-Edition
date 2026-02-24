@@ -24,7 +24,7 @@ public class Gel extends ZeldaEnemy {
         this.width = 8;
         this.height = 8;
         nextHop = HOP_INTERVAL_MIN + (int)(Math.random() * HOP_INTERVAL_RANGE);
-        sprite = loadSprite("sprites/Enemies/Gel.gif");
+        sprite = loadSprite("sprites/Enemies/Gel - Green.gif");
     }
 
     @Override

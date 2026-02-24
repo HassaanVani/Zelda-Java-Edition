@@ -13,7 +13,7 @@ public class Gibdo extends ZeldaEnemy {
     public Gibdo(double x, double y) {
         super(x, y, 6, 2, AIType.RANDOM);
         applyStats(EnemyStats.gibdo());
-        sprite = loadSprite("sprites/Enemies/Gibdo.png");
+        sprite = loadSprite("sprites/Enemies/Gibdo.gif");
     }
 
     @Override

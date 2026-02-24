@@ -20,7 +20,7 @@ public class Rope extends ZeldaEnemy {
     public Rope(double x, double y) {
         super(x, y, 1, 1, AIType.CHASE);
         applyStats(EnemyStats.rope());
-        sprite = loadSprite("sprites/Enemies/Rope.png");
+        sprite = loadSprite("sprites/Enemies/Rope.gif");
     }
 
     @Override

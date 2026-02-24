@@ -42,21 +42,21 @@ public class EnemyStats {
     public static Stats octorokBlue()   { return new Stats(2,  1, 0.75, 2, 0); }
 
     public static Stats moblinRed()     { return new Stats(2,  1, 0.5,  0, 0); }
-    public static Stats moblinBlue()    { return new Stats(3,  2, 0.75, 2, 0); }
+    public static Stats moblinBlue()    { return new Stats(3,  1, 0.75, 2, 0); }
 
     public static Stats lynelRed()      { return new Stats(4,  2, 0.5,  1, 0); }
     public static Stats lynelBlue()     { return new Stats(6,  4, 0.75, 2, 0); }
 
     public static Stats tektiteRed()    { return new Stats(1,  1, 1.0,  0, 0); }
-    public static Stats tektiteBlue()   { return new Stats(2,  1, 1.2,  0, 0); }
+    public static Stats tektiteBlue()   { return new Stats(1,  1, 1.2,  0, 0); }
 
-    public static Stats leeverRed()     { return new Stats(4,  2, 0.75, 2, 0); }
-    public static Stats leeverBlue()    { return new Stats(2,  1, 0.5,  0, 0); }
+    public static Stats leeverRed()     { return new Stats(2,  1, 0.75, 2, 0); }
+    public static Stats leeverBlue()    { return new Stats(4,  2, 0.5,  0, 0); }
 
     public static Stats peahat()        { return new Stats(2,  1, 1.0,  1, 0); }
-    public static Stats ghini()         { return new Stats(10, 1, 0.75, 1, 0); }
-    public static Stats ghiniSpawned()  { return new Stats(999, 1, 0.75, -1, DMG_ALL); } // spawned Ghinis are invincible
-    public static Stats armos()         { return new Stats(3,  1, 0.5,  1, 0); }
+    public static Stats ghini()         { return new Stats(9,  2, 0.75, 1, 0); }
+    public static Stats ghiniSpawned()  { return new Stats(999, 2, 0.75, -1, DMG_ALL); } // spawned Ghinis are invincible
+    public static Stats armos()         { return new Stats(3,  2, 0.5,  1, 0); }
     public static Stats zola()          { return new Stats(2,  1, 0.0,  1, 0); }
 
     // ==================== DUNGEON ENEMIES ====================
@@ -70,29 +70,29 @@ public class EnemyStats {
     public static Stats goriyaBlue()    { return new Stats(5,  2, 0.75, 2, 0); }
 
     // Darknuts: immune to frontal attacks (handled in CombatManager, not via mask)
-    public static Stats darknutRed()    { return new Stats(4,  1, 0.5,  1, 0); }
-    public static Stats darknutBlue()   { return new Stats(8,  2, 0.75, 2, 0); }
+    public static Stats darknutRed()    { return new Stats(4,  2, 0.5,  1, 0); }
+    public static Stats darknutBlue()   { return new Stats(8,  4, 0.75, 2, 0); }
 
     // Wizzrobes: blue is immune to boomerang
-    public static Stats wizzrobeRed()   { return new Stats(3,  2, 0.75, 2, 0); }
-    public static Stats wizzrobeBlue()  { return new Stats(3,  2, 0.0,  1, DMG_BOOMERANG); }
+    public static Stats wizzrobeRed()   { return new Stats(4,  2, 0.75, 2, 0); }
+    public static Stats wizzrobeBlue()  { return new Stats(10, 4, 0.0,  1, DMG_BOOMERANG); }
 
-    public static Stats gibdo()         { return new Stats(6,  2, 0.5,  2, 0); }
-    public static Stats likeLike()      { return new Stats(4,  1, 0.4,  1, 0); }
-    public static Stats polsVoice()     { return new Stats(6,  1, 1.0,  2, 0); } // 1-hit kill by arrow handled specially
-    public static Stats vire()          { return new Stats(4,  1, 1.0,  2, 0); }
+    public static Stats gibdo()         { return new Stats(7,  4, 0.5,  2, 0); }
+    public static Stats likeLike()      { return new Stats(9,  2, 0.4,  1, 0); }
+    public static Stats polsVoice()     { return new Stats(10, 4, 1.0,  2, 0); } // 1-hit kill by arrow handled specially
+    public static Stats vire()          { return new Stats(4,  2, 1.0,  2, 0); }
     public static Stats rope()          { return new Stats(1,  1, 1.5,  0, 0); }
     public static Stats wallmaster()    { return new Stats(2,  1, 1.0,  2, 0); }
 
     // Gel / Zol (currently mapped to Keese)
     public static Stats gel()           { return new Stats(1,  1, 0.75, -1, 0); } // no drops
-    public static Stats zol()           { return new Stats(2,  1, 0.5,  2, 0); }
+    public static Stats zol()           { return new Stats(2,  2, 0.5,  2, 0); }
 
     // Bubble: completely invulnerable, no contact damage (disables sword instead)
     public static Stats bubble()        { return new Stats(999, 0, 1.0, -1, DMG_ALL); }
 
     // Trap: invulnerable blade trap, 1 damage on contact, no drops
-    public static Stats trap()          { return new Stats(999, 1, 3.0, -1, DMG_ALL); }
+    public static Stats trap()          { return new Stats(999, 2, 3.0, -1, DMG_ALL); }
 
     // ==================== MISSING DUNGEON ENEMIES ====================
     // Spark/Anti-Fairy: invulnerable, travels along walls, disables sword
@@ -102,28 +102,28 @@ public class EnemyStats {
     // Boulder: invulnerable falling rock in Death Mountain
     public static Stats boulder()       { return new Stats(999, 1, 2.0, -1, DMG_ALL); }
     // Lanmola: centipede, only head is vulnerable
-    public static Stats lanmolaRed()    { return new Stats(4,  1, 1.0,  2, 0); }
-    public static Stats lanmolaBlue()   { return new Stats(6,  2, 1.2,  2, 0); }
+    public static Stats lanmolaRed()    { return new Stats(2,  4, 1.0,  2, 0); }
+    public static Stats lanmolaBlue()   { return new Stats(2,  4, 1.2,  2, 0); }
     // Moldorm: segmented worm, 1 HP per segment
-    public static Stats moldorm()       { return new Stats(1,  1, 1.0,  2, 0); }
+    public static Stats moldorm()       { return new Stats(2,  1, 1.0,  2, 0); }
     // Patra: mini-boss orbiting eyes
-    public static Stats patraCore()     { return new Stats(4,  2, 0.25, 3, 0); }
-    public static Stats patraOrbiter()  { return new Stats(1,  2, 0.0,  -1, 0); }
+    public static Stats patraCore()     { return new Stats(11, 4, 0.25, 3, 0); }
+    public static Stats patraOrbiter()  { return new Stats(6,  4, 0.0,  -1, 0); }
 
     // ==================== BOSSES ====================
 
-    public static Stats aquamentus()    { return new Stats(6,  1, 0.25, 3, DMG_BOOMERANG); }
+    public static Stats aquamentus()    { return new Stats(6,  2, 0.25, 3, DMG_BOOMERANG); }
     // Dodongo: immune to everything except bombs (swallowed)
-    public static Stats dodongo()       { return new Stats(1,  1, 0.5,  3, DMG_SWORD | DMG_BOOMERANG | DMG_ARROW | DMG_FIRE | DMG_ROD); }
-    public static Stats manhandla()     { return new Stats(8,  2, 0.5,  3, DMG_BOOMERANG); }
-    public static Stats gleeok()        { return new Stats(8,  2, 0.25, 3, DMG_BOOMERANG); }
-    public static Stats digdogger()     { return new Stats(6,  2, 0.5,  3, DMG_ALL); } // invulnerable until recorder shrinks
-    public static Stats digdoggerSmall(){ return new Stats(1,  1, 1.5,  3, 0); }
+    public static Stats dodongo()       { return new Stats(1,  2, 0.5,  3, DMG_SWORD | DMG_BOOMERANG | DMG_ARROW | DMG_FIRE | DMG_ROD); }
+    public static Stats manhandla()     { return new Stats(4,  2, 0.5,  3, DMG_BOOMERANG); }
+    public static Stats gleeok()        { return new Stats(10, 2, 0.25, 3, DMG_BOOMERANG); }
+    public static Stats digdogger()     { return new Stats(8,  4, 0.5,  3, DMG_ALL); } // invulnerable until recorder shrinks
+    public static Stats digdoggerSmall(){ return new Stats(4,  4, 1.5,  3, 0); }
     // Gohma: only damaged by arrows to open eye (handled in combat, not via mask)
-    public static Stats gohmaRed()      { return new Stats(1,  2, 0.25, 3, 0); }
-    public static Stats gohmaBlue()     { return new Stats(3,  2, 0.25, 3, 0); }
+    public static Stats gohmaRed()      { return new Stats(1,  4, 0.25, 3, 0); }
+    public static Stats gohmaBlue()     { return new Stats(3,  4, 0.25, 3, 0); }
     // Ganon: immune to everything except Silver Arrow in final phase
-    public static Stats ganon()         { return new Stats(8,  4, 0.0,  3, 0); }
+    public static Stats ganon()         { return new Stats(8,  8, 0.0,  3, 0); }
 
     // ==================== PROJECTILE ENEMY DAMAGE ====================
     // (damage from enemy projectiles like rocks, spears, magic — in half-hearts)

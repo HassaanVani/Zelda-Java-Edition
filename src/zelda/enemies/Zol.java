@@ -14,7 +14,7 @@ public class Zol extends ZeldaEnemy {
     public Zol(double x, double y) {
         super(x, y, 2, 1, AIType.RANDOM);
         applyStats(EnemyStats.zol());
-        sprite = loadSprite("sprites/Enemies/Zol.gif");
+        sprite = loadSprite("sprites/Enemies/Zol - Green.gif");
     }
 
     public void setRoomEnemies(List<ZeldaEnemy> enemies) {

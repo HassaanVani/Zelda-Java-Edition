@@ -12,7 +12,7 @@ public class ZeldaPlayer {
     public static final int ATTACK_DURATION = 12;
     public static final int INVULN_FRAMES = 24;
     public static final int ANIM_CYCLE_RATE = 10;
-    public static final int KNOCKBACK_DISTANCE = 32;
+    public static final int KNOCKBACK_DISTANCE = 16; // NES: 8 frames × 2px = 16px
     public static final double KNOCKBACK_SPEED = 2.0;
 
     public static final int DIR_UP = 0;
@@ -210,31 +210,24 @@ public class ZeldaPlayer {
         if (invulnHidden) return;
 
         boolean isAttack = attacking && inventory.hasSword();
-        Image img = isAttack ? attackImages[direction][animFrame] : walkImages[direction][animFrame];
+        // Always use walk sprite for body; attack sprites include sword and distort size
+        Image img = isAttack ? walkImages[direction][0] : walkImages[direction][animFrame];
         boolean flipH = (direction == DIR_RIGHT);
 
         if (img != null) {
             int drawX = (int) worldX;
             int drawY = (int) worldY;
-            int dw, dh;
-
-            if (isAttack) {
-                dw = img.getWidth(null);
-                dh = img.getHeight(null);
-                if (dw <= 0) dw = WIDTH;
-                if (dh <= 0) dh = HEIGHT;
-                if (direction == DIR_UP) drawY -= (dh - HEIGHT);
-                if (direction == DIR_LEFT) drawX -= (dw - WIDTH);
-            } else {
-                dw = WIDTH;
-                dh = HEIGHT;
-            }
+            int dw = WIDTH;
+            int dh = HEIGHT;
 
             if (flipH) {
                 g2.drawImage(img, drawX + dw, drawY, -dw, dh, null);
             } else {
                 g2.drawImage(img, drawX, drawY, dw, dh, null);
             }
+
+            // Draw sword separately during attack
+            if (isAttack) renderSword(g2);
 
             // NES-style color flash overlay during invulnerability
             if (invulnerableFrames > 0) {
@@ -300,6 +293,17 @@ public class ZeldaPlayer {
         worldY = oldY;
     }
 
+    public void resetMoving() {
+        moving = false;
+        animFrame = 0;
+        animCounter = 0;
+    }
+
+    /** Returns true if worldX/worldY differs from the saved oldX/oldY. */
+    public boolean hasActuallyMoved() {
+        return Math.abs(worldX - oldX) > 0.001 || Math.abs(worldY - oldY) > 0.001;
+    }
+
     public void clampToPlayArea() {
         worldX = Math.max(0, Math.min(worldX, ZeldaRoom.ROOM_PIXEL_W - WIDTH));
         worldY = Math.max(0, Math.min(worldY, ZeldaRoom.ROOM_PIXEL_H - HEIGHT));
@@ -346,6 +350,12 @@ public class ZeldaPlayer {
     public void setHasBoomerang(boolean b) {
         if (b && inventory.getBoomerangLevel() == 0) inventory.setBoomerangLevel(1);
         else if (!b) inventory.setBoomerangLevel(0);
+    }
+
+    /** Get walk sprite for a direction (0=up,1=left,2=down,3=right). Used for death spin. */
+    public Image getWalkSprite(int dir) {
+        if (dir >= 0 && dir < 4 && walkImages[dir][0] != null) return walkImages[dir][0];
+        return null;
     }
 
     public String getName() { return name; }

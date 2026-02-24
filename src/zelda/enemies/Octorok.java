@@ -7,8 +7,7 @@ import javax.swing.ImageIcon;
 import zelda.*;
 
 public class Octorok extends ZeldaEnemy {
-    private static final int SHOOT_RANGE = 80;
-    private static final int SHOOT_COOLDOWN = 90;
+    private static final int SHOOT_COOLDOWN = 64; // NES: ~$40 frames
     private static final double PROJECTILE_SPEED = 2.0;
 
     private boolean isRed;
@@ -52,27 +51,25 @@ public class Octorok extends ZeldaEnemy {
 
         randomMove(room);
 
-        double dx = player.getWorldX() - x;
-        double dy = player.getWorldY() - y;
-        double dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist < SHOOT_RANGE && shootTimer == 0) {
-            shoot(player, projectiles);
-            shootTimer = SHOOT_COOLDOWN;
+        // NES: shoot rock in facing direction every ~64 frames
+        if (shootTimer == 0) {
+            shootRock(projectiles);
+            shootTimer = SHOOT_COOLDOWN + (int)(Math.random() * 30);
         }
     }
 
-    private void shoot(ZeldaPlayer player, List<Projectile> projectiles) {
-        double dx = player.getWorldX() - x;
-        double dy = player.getWorldY() - y;
-        double dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist == 0) return;
-
-        double vx = (dx / dist) * PROJECTILE_SPEED;
-        double vy = (dy / dist) * PROJECTILE_SPEED;
-
+    private void shootRock(List<Projectile> projectiles) {
+        double vx = 0, vy = 0;
+        switch (direction) {
+            case 0: vy = -PROJECTILE_SPEED; break; // up
+            case 1: vx = -PROJECTILE_SPEED; break; // left
+            case 2: vy = PROJECTILE_SPEED; break;  // down
+            case 3: vx = PROJECTILE_SPEED; break;  // right
+        }
         Projectile p = new Projectile(x + width/2, y + height/2, vx, vy, false);
         p.setColor(isRed ? new Color(180, 56, 0) : new Color(100, 100, 200));
+        p.setSize(6, 6);
+        p.setDamage(EnemyStats.ROCK_DAMAGE);
         projectiles.add(p);
     }
 

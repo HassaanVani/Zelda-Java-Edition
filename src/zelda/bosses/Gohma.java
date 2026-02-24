@@ -38,8 +38,9 @@ public class Gohma extends ZeldaEnemy {
         this.width = 24;
         this.height = 16;
         this.speed = 0.6;
-        this.damage = 1; // 1/2 heart
-        sprite = loadSprite("sprites/Bosses/6 - Gohma.png");
+        // damage set by applyStats: 4 half-hearts (2 hearts)
+        String color = blue ? "Blue" : "Red";
+        sprite = loadSprite("sprites/Bosses/6 - Gohma - " + color + ".gif");
     }
 
     @Override

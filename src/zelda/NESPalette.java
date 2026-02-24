@@ -178,44 +178,10 @@ public class NESPalette {
         }
     }
 
-    // ===== OVERWORLD PALETTE TYPES =====
-
-    /** Overworld biome colors for tinting */
-    public static Color getOverworldOuterPalette(int selector) {
-        switch (selector & 0x03) {
-            case 0: return nesColor(0x0A); // dark green (forest)
-            case 1: return nesColor(0x16); // dark red (mountain)
-            case 2: return nesColor(0x12); // dark blue (lake)
-            case 3: return nesColor(0x17); // brown (desert)
-            default: return nesColor(0x0A);
-        }
-    }
-
-    public static Color getOverworldInnerPalette(int selector) {
-        switch (selector & 0x03) {
-            case 0: return nesColor(0x29); // green (grass)
-            case 1: return nesColor(0x27); // orange (sand)
-            case 2: return nesColor(0x21); // blue (water)
-            case 3: return nesColor(0x28); // yellow (beach)
-            default: return nesColor(0x29);
-        }
-    }
-
     // ===== SPECIAL PALETTES =====
 
-    /** Cave background palette: $0F,$30,$00,$12 = black, white, gray, blue */
-    public static final Color CAVE_WALL = nesColor(0x30);    // white
-    public static final Color CAVE_FLOOR = new Color(52, 28, 0); // dark brown
-    public static final Color CAVE_ACCENT = nesColor(0x07);   // dark brown NES
-
-    /** Death animation palette: $0F,$17,$16,$26 */
-    public static final Color DEATH_BG1 = nesColor(0x17);    // brown
+    /** Death animation palette: $0F,$16 */
     public static final Color DEATH_BG2 = nesColor(0x16);    // dark red
-    public static final Color DEATH_BG3 = nesColor(0x26);    // red
-
-    /** Title screen palette: golden */
-    public static final Color TITLE_GOLD = nesColor(0x27);    // orange
-    public static final Color TITLE_BROWN = nesColor(0x17);   // brown
 
     /** Game over palette */
     public static final Color GAME_OVER_BG = nesColor(0x06);  // dark red
@@ -237,8 +203,4 @@ public class NESPalette {
         return lerp(Color.BLACK, c, factor);
     }
 
-    /** Apply a color tint overlay to a base color */
-    public static Color tint(Color base, Color tintColor, float strength) {
-        return lerp(base, tintColor, strength);
-    }
 }

@@ -1,6 +1,7 @@
 package zelda.enemies;
 
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.util.List;
 import zelda.*;
 
@@ -10,11 +11,21 @@ import zelda.*;
  */
 public class Armos extends ZeldaEnemy {
     private boolean dormant = true;
+    private BufferedImage statueSprite;
+    private BufferedImage frontSprite;
+    private BufferedImage backSprite;
 
     public Armos(double x, double y) {
         super(x, y, 3, 1, AIType.CHASE);
         applyStats(EnemyStats.armos());
-        sprite = loadSprite("sprites/Enemies/Armos.png");
+        loadArmosSprites();
+    }
+
+    private void loadArmosSprites() {
+        statueSprite = loadSprite("sprites/Enemies/Armos Knight - Statue.gif");
+        frontSprite = loadSprite("sprites/Enemies/Armos Knight (Front).gif");
+        backSprite = loadSprite("sprites/Enemies/Armos Knight (Back).gif");
+        sprite = statueSprite;
     }
 
     @Override
@@ -24,6 +35,7 @@ public class Armos extends ZeldaEnemy {
         if (invulnerableFrames > 0) invulnerableFrames--;
 
         if (dormant) {
+            sprite = statueSprite;
             double dx = player.getWorldX() - x;
             double dy = player.getWorldY() - y;
             if (Math.abs(dx) < 18 && Math.abs(dy) < 18) {
@@ -35,6 +47,26 @@ public class Armos extends ZeldaEnemy {
         double dx = player.getWorldX() - x;
         double dy = player.getWorldY() - y;
         double dist = Math.sqrt(dx * dx + dy * dy);
+
+        // Update direction based on movement toward player
+        if (dist > 0) {
+            if (Math.abs(dy) > Math.abs(dx)) {
+                direction = dy > 0 ? 2 : 0; // down or up
+            } else {
+                direction = dx > 0 ? 3 : 1; // right or left
+            }
+        }
+
+        // Update sprite based on direction
+        switch (direction) {
+            case 0: // up (back)
+                sprite = backSprite;
+                break;
+            default: // down, left, right (front)
+                sprite = frontSprite;
+                break;
+        }
+
         if (dist > 0) {
             double nx = x + (dx / dist) * speed;
             double ny = y + (dy / dist) * speed;

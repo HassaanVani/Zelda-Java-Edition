@@ -1,6 +1,7 @@
 package zelda.enemies;
 
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.util.List;
 import zelda.*;
 
@@ -15,11 +16,19 @@ public class Zola extends ZeldaEnemy {
     private static final int SUBMERGE_TIME = 90;
     private static final int SURFACE_TIME = 20;
     private static final int SHOOT_TIME = 40;
+    private BufferedImage frontSprite;
+    private BufferedImage backSprite;
 
     public Zola(double x, double y) {
         super(x, y, 2, 1, AIType.SHOOTER);
         applyStats(EnemyStats.zola());
-        sprite = loadSprite("sprites/Enemies/Zola.png");
+        loadZolaSprites();
+    }
+
+    private void loadZolaSprites() {
+        frontSprite = loadSprite("sprites/Enemies/Zola (Front).gif");
+        backSprite = loadSprite("sprites/Enemies/Zola (Back).gif");
+        sprite = frontSprite;
     }
 
     @Override
@@ -40,9 +49,11 @@ public class Zola extends ZeldaEnemy {
                 }
                 break;
             case SURFACING:
+                sprite = backSprite; // emerging from water shows back
                 if (phaseTimer >= SURFACE_TIME) {
                     phase = Phase.SHOOTING;
                     phaseTimer = 0;
+                    sprite = frontSprite; // face player when shooting
                     // Shoot fireball at player
                     double dx = player.getWorldX() - x;
                     double dy = player.getWorldY() - y;
@@ -59,12 +70,14 @@ public class Zola extends ZeldaEnemy {
                 }
                 break;
             case SHOOTING:
+                sprite = frontSprite;
                 if (phaseTimer >= SHOOT_TIME) {
                     phase = Phase.SUBMERGING;
                     phaseTimer = 0;
                 }
                 break;
             case SUBMERGING:
+                sprite = backSprite; // sinking back shows back
                 if (phaseTimer >= SURFACE_TIME) {
                     phase = Phase.SUBMERGED;
                     phaseTimer = 0;
